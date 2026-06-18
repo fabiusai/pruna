@@ -220,11 +220,12 @@
                 else if (action === 'upscale') {
                     prunaModel = 'p-image-upscale';
                     if (imageUrl) {
-                        payload.input.image = imageUrl;
-                        payload.input.upscale_mode = "factor";
-                        payload.input.factor = 4;
+                        // Passiamo solo l'URL dell'immagine, senza parametri matematici
+                        payload.input.image = imageUrl; 
                     } else {
                         throw new Error("Per l'upscale devi inserire un URL valido!");
+                    }
+                }
                     }
                 }
 
