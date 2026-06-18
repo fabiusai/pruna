@@ -8,7 +8,7 @@ exports.handler = async function(event, context) {
         return { statusCode: 401, body: JSON.stringify({ error: "API Key mancante" }) };
     }
 
-    // NUOVO: Se riceve un URL di check, interroga Pruna per sapere a che punto è l'immagine
+    // Se riceve un URL di check, interroga Pruna per sapere a che punto è
     const checkUrl = event.headers['x-pruna-check-url'];
     if (checkUrl) {
         try {
@@ -19,11 +19,11 @@ exports.handler = async function(event, context) {
             const data = await response.json();
             return { statusCode: response.status, body: JSON.stringify(data) };
         } catch (error) {
-            return { statusCode: 500, body: JSON.stringify({ error: "Errore durante il controllo dello stato" }) };
+            return { statusCode: 500, body: JSON.stringify({ error: "Errore controllo stato" }) };
         }
     }
 
-    // ALTRIMENTI: Avvia una nuova generazione (senza Try-Sync)
+    // Avvia una nuova generazione
     const model = event.headers['x-pruna-model'] || 'p-image';
     try {
         let requestBody = event.body;
@@ -36,21 +36,15 @@ exports.handler = async function(event, context) {
             headers: {
                 'apikey': apiKey,
                 'Content-Type': 'application/json',
-                'Model': model
+                'Model': model,
+                'Try-Sync': 'false' 
             },
             body: requestBody
         });
 
         const data = await response.json();
-        return {
-            statusCode: response.status,
-            body: JSON.stringify(data)
-        };
+        return { statusCode: response.status, body: JSON.stringify(data) };
     } catch (error) {
-        console.error("Errore del Proxy:", error);
-        return {
-            statusCode: 500,
-            body: JSON.stringify({ error: "Errore di comunicazione con Pruna" })
-        };
+        return { statusCode: 500, body: JSON.stringify({ error: "Errore comunicazione Pruna" }) };
     }
 };
