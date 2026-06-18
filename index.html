@@ -55,8 +55,8 @@
         }
 
         input[type="password"],
+        input[type="url"],
         textarea,
-        input[type="file"],
         select {
             width: 100%;
             padding: 14px;
@@ -75,6 +75,7 @@
         }
 
         input[type="password"]:focus,
+        input[type="url"]:focus,
         textarea:focus,
         select:focus {
             outline: none;
@@ -86,21 +87,6 @@
             resize: vertical;
             min-height: 100px;
             line-height: 1.4;
-        }
-
-        input[type="file"] {
-            padding: 10px;
-            background-color: transparent;
-            border: 1px dashed #d2d2d7;
-            cursor: pointer;
-        }
-
-        #imagePreview {
-            display: none;
-            margin-top: 15px;
-            max-width: 200px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
 
         button {
@@ -151,6 +137,7 @@
             background: rgba(255, 59, 48, 0.1);
             padding: 12px;
             border-radius: 8px;
+            word-wrap: break-word;
         }
     </style>
 </head>
@@ -171,13 +158,12 @@
 
         <div id="promptGroup">
             <label for="prompt">Prompt Descrittivo</label>
-            <textarea id="prompt" rows="4">Japanese girl Hero smiles, wears a kimono...</textarea>
+            <textarea id="prompt" rows="4">Japanese girl Hero smiles, wears a kimono, serves japanese tea to the viewer, same artistic style</textarea>
         </div>
 
         <div id="imageGroup" style="display: none;">
-            <label for="imageInput">Carica Immagine Base</label>
-            <input type="file" id="imageInput" accept="image/png, image/jpeg, image/webp" onchange="previewImage(event)">
-            <img id="imagePreview" alt="Anteprima immagine caricata">
+            <label for="imageUrl">URL Immagine Base (Link Diretto Pubblico)</label>
+            <input type="url" id="imageUrl" placeholder="Es: https://hash.cloud/hero.jpeg">
         </div>
 
         <button onclick="eseguiAzione()">Elabora</button>
@@ -195,36 +181,11 @@
             document.getElementById('imageGroup').style.display = (action === 'generate') ? 'none' : 'block';
         }
 
-        function previewImage(event) {
-            const file = event.target.files[0];
-            const preview = document.getElementById('imagePreview');
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    preview.src = e.target.result;
-                    preview.style.display = 'block';
-                }
-                reader.readAsDataURL(file);
-            } else {
-                preview.style.display = 'none';
-                preview.src = '';
-            }
-        }
-
-        function getBase64(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = error => reject(error);
-            });
-        }
-
         async function eseguiAzione() {
             const apiKey = document.getElementById('apiKey').value.trim();
             const action = document.getElementById('actionSelect').value;
             const promptTesto = document.getElementById('prompt').value.trim();
-            const imageInput = document.getElementById('imageInput');
+            const imageUrl = document.getElementById('imageUrl').value.trim();
             const loadingDiv = document.getElementById('loading');
             const resultDiv = document.getElementById('result');
 
@@ -250,24 +211,24 @@
                 else if (action === 'edit') {
                     prunaModel = 'p-image-edit';
                     payload.input.prompt = promptTesto;
-                    if (imageInput.files.length > 0) {
-                        payload.input.image = await getBase64(imageInput.files[0]);
+                    if (imageUrl) {
+                        payload.input.image = imageUrl; 
                     } else {
-                        throw new Error("Per il fotoritocco devi caricare un'immagine!");
+                        throw new Error("Per il fotoritocco devi inserire un URL valido!");
                     }
                 } 
                 else if (action === 'upscale') {
                     prunaModel = 'p-image-upscale';
-                    if (imageInput.files.length > 0) {
-                        payload.input.image = await getBase64(imageInput.files[0]);
-                        // Il modello p-image-upscale usa questi parametri matematici invece del prompt
+                    if (imageUrl) {
+                        payload.input.image = imageUrl;
                         payload.input.upscale_mode = "factor";
                         payload.input.factor = 4;
                     } else {
-                        throw new Error("Per l'upscale devi caricare un'immagine!");
+                        throw new Error("Per l'upscale devi inserire un URL valido!");
                     }
                 }
 
+                // Chiamata ultra-leggera verso Netlify
                 const response = await fetch(endpoint, {
                     method: 'POST',
                     headers: {
@@ -287,10 +248,10 @@
                 console.log("Risposta API:", data);
 
                 if (data.status === "succeeded" && data.generation_url) {
-                    const imageUrl = data.generation_url.startsWith('http') 
+                    const finalImageUrl = data.generation_url.startsWith('http') 
                         ? data.generation_url 
                         : `https://api.pruna.ai${data.generation_url}`;
-                    resultDiv.innerHTML = `<img src="${imageUrl}" alt="Immagine Generata" onload="this.style.opacity=1" style="opacity:0;">`;
+                    resultDiv.innerHTML = `<img src="${finalImageUrl}" alt="Immagine Generata" onload="this.style.opacity=1" style="opacity:0;">`;
                 } else if (data.status) {
                     resultDiv.innerHTML = `<p>Stato elaborazione: <strong>${data.status}</strong>. Controlla la console.</p>`;
                 } else {
