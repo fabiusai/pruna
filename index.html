@@ -54,9 +54,7 @@
             color: #515154;
         }
 
-        /* Aggiunto input[type="number"] per il nuovo campo Seed */
         input[type="password"],
-        input[type="url"],
         input[type="number"],
         textarea,
         select {
@@ -77,7 +75,6 @@
         }
 
         input[type="password"]:focus,
-        input[type="url"]:focus,
         input[type="number"]:focus,
         textarea:focus,
         select:focus {
@@ -88,7 +85,6 @@
 
         textarea {
             resize: vertical;
-            min-height: 100px;
             line-height: 1.4;
         }
 
@@ -164,13 +160,13 @@
         <label for="actionSelect">Modalità Operativa</label>
         <select id="actionSelect" onchange="aggiornaInterfaccia()">
             <option value="generate">Crea Nuova Immagine (Solo testo)</option>
-            <option value="edit">Fotoritocco Guidato (Testo + Immagine)</option>
+            <option value="edit">Fotoritocco o Clone Volto (Testo + Immagini)</option>
             <option value="upscale">Migliora Risoluzione 4x (Solo Immagine)</option>
         </select>
 
         <div id="promptGroup">
             <label for="prompt">Prompt Descrittivo</label>
-            <textarea id="prompt" rows="4">Japanese girl Hero smiles, wears a kimono, serves japanese tea to the viewer, same artistic style</textarea>
+            <textarea id="prompt" rows="4">A cinematic portrait of this person as a futuristic cyberpunk hacker...</textarea>
         </div>
 
         <div id="settingsGroup" class="flex-group">
@@ -182,8 +178,6 @@
                     <option value="9:16">9:16 (Reel/Story)</option>
                     <option value="4:3">4:3 (Classico)</option>
                     <option value="3:4">3:4 (Verticale)</option>
-                    <option value="3:2">3:2 (Fotografia)</option>
-                    <option value="2:3">2:3 (Ritratto)</option>
                 </select>
             </div>
             <div class="flex-item">
@@ -193,27 +187,22 @@
         </div>
 
         <div id="imageGroup" style="display: none;">
-            <label for="imageUrl">URL Immagine Base (Link Diretto Pubblico)</label>
-            <input type="url" id="imageUrl" placeholder="Es: https://hash.cloud/hero.jpeg">
+            <label for="imageUrls">URL Immagini (Incolla un link diretto per riga)</label>
+            <textarea id="imageUrls" rows="3" placeholder="https://tuoserver.com/foto1.jpg&#10;https://tuoserver.com/foto2.jpg"></textarea>
         </div>
 
         <button onclick="eseguiAzione()">Elabora</button>
 
-        <div id="loading">Elaborazione in corso tramite Netlify, attendi...</div>
+        <div id="loading">Comunicazione con Pruna in corso...</div>
         
         <div id="result"></div>
     </div>
 
     <script>
-        // Mostra o nascondi i controlli in base alla modalità scelta
         function aggiornaInterfaccia() {
             const action = document.getElementById('actionSelect').value;
-            
-            // Nasconde Prompt, Formato e Seed se è selezionato l'Upscale
             document.getElementById('promptGroup').style.display = (action === 'upscale') ? 'none' : 'block';
             document.getElementById('settingsGroup').style.display = (action === 'upscale') ? 'none' : 'flex';
-            
-            // Mostra il campo Immagine se NON è selezionata la generazione da zero
             document.getElementById('imageGroup').style.display = (action === 'generate') ? 'none' : 'block';
         }
 
@@ -221,7 +210,7 @@
             const apiKey = document.getElementById('apiKey').value.trim();
             const action = document.getElementById('actionSelect').value;
             const promptTesto = document.getElementById('prompt').value.trim();
-            const imageUrl = document.getElementById('imageUrl').value.trim();
+            const imageUrlsRaw = document.getElementById('imageUrls').value;
             const aspectRatio = document.getElementById('aspectRatio').value;
             const seedVal = document.getElementById('seed').value.trim();
             
@@ -240,6 +229,9 @@
             let prunaModel = '';
             let payload = { input: {} };
 
+            // Pulisce e separa gli URL multipli in un Array
+            const urlsArray = imageUrlsRaw.split('\n').map(u => u.trim()).filter(u => u !== '');
+
             try {
                 if (action === 'generate') {
                     prunaModel = 'p-image';
@@ -253,23 +245,22 @@
                     payload.input.aspect_ratio = aspectRatio;
                     if (seedVal) payload.input.seed = parseInt(seedVal);
                     
-                    if (imageUrl) {
-                        // LA FIX: p-image-edit esige "images" impostato come Array di stringhe
-                        payload.input.images = [imageUrl]; 
+                    if (urlsArray.length > 0) {
+                        payload.input.images = urlsArray; // Array di immagini multiple per coerenza del volto
                     } else {
-                        throw new Error("Per il fotoritocco devi inserire un URL valido!");
+                        throw new Error("Devi inserire almeno un URL di un'immagine!");
                     }
                 } 
                 else if (action === 'upscale') {
                     prunaModel = 'p-image-upscale';
-                    if (imageUrl) {
-                        // Upscale invece accetta la stringa "image" singola
-                        payload.input.image = imageUrl; 
+                    if (urlsArray.length > 0) {
+                        payload.input.image = urlsArray[0]; // Upscale accetta solo la prima immagine
                     } else {
-                        throw new Error("Per l'upscale devi inserire un URL valido!");
+                        throw new Error("Devi inserire l'URL di un'immagine da ingrandire!");
                     }
                 }
 
+                // Chiamata Iniziale
                 const response = await fetch(endpoint, {
                     method: 'POST',
                     headers: {
@@ -286,28 +277,65 @@
                 }
 
                 const data = await response.json();
-                console.log("Risposta API:", data);
-
-                if (data.status === "succeeded" && data.generation_url) {
-                    const finalImageUrl = data.generation_url.startsWith('http') 
-                        ? data.generation_url 
-                        : `https://api.pruna.ai${data.generation_url}`;
-                    resultDiv.innerHTML = `<img src="${finalImageUrl}" alt="Immagine Generata" onload="this.style.opacity=1" style="opacity:0;">`;
-                } else if (data.status) {
-                    resultDiv.innerHTML = `<p>Stato elaborazione: <strong>${data.status}</strong>. Controlla la console.</p>`;
-                } else {
-                    resultDiv.innerHTML = `<p class="error">Formato di risposta sconosciuto, guarda la console per i dettagli.</p>`;
+                
+                // Se la risposta contiene una coda asincrona (il normale comportamento dei modelli pesanti)
+                if (data.status === "starting" || data.status === "processing" || data.get_url) {
+                    resultDiv.innerHTML = `<p style="color: #0071e3; font-weight: 500;">Generazione in background avviata... non chiudere la pagina.</p>`;
+                    controllaStato(data.get_url, apiKey, endpoint, resultDiv, loadingDiv);
+                } 
+                // Se l'immagine è già pronta all'istante
+                else if (data.status === "succeeded" && data.generation_url) {
+                    mostraImmagine(data.generation_url, resultDiv);
+                    loadingDiv.style.display = 'none';
+                } 
+                else {
+                    throw new Error("Stato imprevisto: " + JSON.stringify(data));
                 }
 
             } catch (error) {
                 console.error("Errore:", error);
                 resultDiv.innerHTML = `<p class="error">${error.message}</p>`;
-            } finally {
                 loadingDiv.style.display = 'none';
             }
         }
 
-        // Inizializza l'interfaccia corretta all'apertura della pagina
+        // Funzione ricorsiva di Polling (interroga Netlify ogni 3 secondi)
+        async function controllaStato(jobUrl, apiKey, endpoint, resultDiv, loadingDiv) {
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'x-pruna-key': apiKey,
+                        'x-pruna-check-url': jobUrl // Questo dice al proxy di fare una GET a Pruna
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.status === 'succeeded' && data.generation_url) {
+                    mostraImmagine(data.generation_url, resultDiv);
+                    loadingDiv.style.display = 'none';
+                } else if (data.status === 'failed') {
+                    resultDiv.innerHTML = `<p class="error">L'elaborazione è fallita sui server di Pruna.</p>`;
+                    loadingDiv.style.display = 'none';
+                } else {
+                    // Se sta ancora elaborando, aspetta 3 secondi e riprova
+                    resultDiv.innerHTML = `<p style="color: #e67e22; font-weight: 500;">Stato: <strong>${data.status.toUpperCase()}</strong> - Attendere prego...</p>`;
+                    setTimeout(() => controllaStato(jobUrl, apiKey, endpoint, resultDiv, loadingDiv), 3000);
+                }
+            } catch (error) {
+                console.error("Errore nel polling:", error);
+                resultDiv.innerHTML = `<p class="error">Errore di rete durante il controllo dello stato.</p>`;
+                loadingDiv.style.display = 'none';
+            }
+        }
+
+        function mostraImmagine(url, div) {
+            const finalImageUrl = url.startsWith('http') ? url : `https://api.pruna.ai${url}`;
+            div.innerHTML = `<img src="${finalImageUrl}" alt="Immagine Generata" onload="this.style.opacity=1" style="opacity:0;">`;
+        }
+
+        // Inizializzazione
         aggiornaInterfaccia();
     </script>
 </body>
