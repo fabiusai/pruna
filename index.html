@@ -3,94 +3,205 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generatore Immagini - Pruna API</title>
+    <title>Generatore Immagini - Pruna API (Netlify)</title>
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f4f4f9;
-            color: #333;
-            max-width: 600px;
-            margin: 40px auto;
-            padding: 20px;
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        :root {
+            --bg-color: #f5f5f7;
+            --container-bg: rgba(255, 255, 255, 0.7);
+            --border-color: rgba(255, 255, 255, 0.4);
+            --text-color: #1d1d1f;
+            --accent-color: #0071e3;
+            --accent-hover: #0077ed;
+            --error-color: #ff3b30;
+            --radius: 16px;
         }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "San Francisco", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at 50% -20%, #e2e2e8, #f5f5f7);
+            color: var(--text-color);
+            max-width: 680px;
+            margin: 60px auto;
+            padding: 0 20px;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .glass-container {
+            background: var(--container-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.05);
+            padding: 40px;
+        }
+
         h2 {
             text-align: center;
-            color: #2c3e50;
+            font-weight: 600;
+            margin-top: 0;
+            margin-bottom: 30px;
+            letter-spacing: -0.5px;
         }
+
         label {
-            font-weight: bold;
+            font-weight: 500;
             display: block;
-            margin-top: 15px;
+            margin-top: 20px;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #515154;
         }
-        input[type="text"], input[type="password"] {
+
+        input[type="password"],
+        textarea,
+        input[type="file"] {
             width: 100%;
-            padding: 10px;
-            margin-top: 5px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
+            padding: 14px;
+            border: 1px solid #d2d2d7;
+            border-radius: 12px;
             box-sizing: border-box;
+            background-color: rgba(255, 255, 255, 0.8);
+            font-family: inherit;
+            font-size: 15px;
+            transition: all 0.2s ease;
         }
+
+        input[type="password"]:focus,
+        textarea:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.1);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+            line-height: 1.4;
+        }
+
+        input[type="file"] {
+            padding: 10px;
+            background-color: transparent;
+            border: 1px dashed #d2d2d7;
+            cursor: pointer;
+        }
+
+        #imagePreview {
+            display: none;
+            margin-top: 15px;
+            max-width: 200px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
         button {
             width: 100%;
-            padding: 12px;
-            margin-top: 20px;
-            background-color: #3498db;
+            padding: 16px;
+            margin-top: 30px;
+            background-color: var(--accent-color);
             color: white;
             border: none;
-            border-radius: 5px;
+            border-radius: 12px;
             font-size: 16px;
+            font-weight: 600;
             cursor: pointer;
-            transition: background 0.3s;
+            transition: background-color 0.2s ease, transform 0.1s ease;
         }
+
         button:hover {
-            background-color: #2980b9;
+            background-color: var(--accent-hover);
         }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
         #loading {
             text-align: center;
-            margin-top: 20px;
-            color: #e67e22;
-            font-weight: bold;
+            margin-top: 25px;
+            color: var(--accent-color);
+            font-weight: 500;
             display: none;
         }
+
         #result {
-            margin-top: 20px;
+            margin-top: 30px;
             text-align: center;
         }
+
         #result img {
             max-width: 100%;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            border-radius: var(--radius);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            transition: opacity 0.4s ease;
         }
+
         .error {
-            color: #e74c3c;
-            font-weight: bold;
+            color: var(--error-color);
+            font-weight: 500;
+            background: rgba(255, 59, 48, 0.1);
+            padding: 12px;
+            border-radius: 8px;
         }
     </style>
 </head>
 <body>
 
-    <h2>Test API Pruna - Immagini</h2>
+    <div class="glass-container">
+        <h2>Pruna AI Studio</h2>
 
-    <label for="apiKey">La tua API Key:</label>
-    <input type="password" id="apiKey" placeholder="Incolla qui la chiave API...">
+        <label for="apiKey">La tua API Key:</label>
+        <input type="password" id="apiKey" placeholder="Incolla qui la chiave...">
 
-    <label for="prompt">Cosa vuoi generare?</label>
-    <input type="text" id="prompt" value="A highly detailed, cinematic stylized portrait of a beautiful dog named Luna, vibrant colors, 8k resolution, studio lighting">
+        <label for="prompt">Prompt Descrittivo</label>
+        <textarea id="prompt" rows="4">Japanese girl Hero smiles, wears a kimono, serves japanese tea to the viewer, same artistic style</textarea>
 
-    <button onclick="generaImmagine()">Genera Immagine</button>
+        <label for="imageInput">Immagine di Riferimento (Opzionale per fotoritocco)</label>
+        <input type="file" id="imageInput" accept="image/png, image/jpeg, image/webp" onchange="previewImage(event)">
+        <img id="imagePreview" alt="Anteprima immagine caricata">
 
-    <div id="loading">Generazione in corso, attendi qualche secondo...</div>
-    
-    <div id="result">
-        </div>
+        <button onclick="generaImmagine()">Genera Immagine</button>
+
+        <div id="loading">Elaborazione in corso tramite Netlify, attendi...</div>
+        
+        <div id="result"></div>
+    </div>
 
     <script>
+        // Funzione per l'anteprima dell'immagine
+        function previewImage(event) {
+            const file = event.target.files[0];
+            const preview = document.getElementById('imagePreview');
+            
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                }
+                reader.readAsDataURL(file);
+            } else {
+                preview.style.display = 'none';
+                preview.src = '';
+            }
+        }
+
+        // Conversione in Base64
+        function getBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+            });
+        }
+
         async function generaImmagine() {
             const apiKey = document.getElementById('apiKey').value.trim();
             const promptTesto = document.getElementById('prompt').value.trim();
+            const imageInput = document.getElementById('imageInput');
             const loadingDiv = document.getElementById('loading');
             const resultDiv = document.getElementById('result');
 
@@ -99,14 +210,12 @@
                 return;
             }
 
-            // Mostra il testo di caricamento e svuota il risultato precedente
             loadingDiv.style.display = 'block';
             resultDiv.innerHTML = '';
 
-            // Endpoint UFFICIALE DIRETTO di Pruna (Proxy rimosso)
-            const endpoint = 'https://api.pruna.ai/v1/predictions';
+            // Il nuovo endpoint punta al backend interno di Netlify
+            const endpoint = '/.netlify/functions/pruna';
 
-            // Il payload per Pruna prevede solo "input"
             const payload = {
                 input: {
                     prompt: promptTesto,
@@ -115,16 +224,22 @@
             };
 
             try {
+                let prunaModel = 'p-image';
+                
+                // Se c'è un'immagine caricata, la allega e cambia il modello
+                if (imageInput.files.length > 0) {
+                    const base64String = await getBase64(imageInput.files[0]);
+                    payload.input.image = base64String; 
+                    prunaModel = 'p-image-edit';
+                }
+
                 const response = await fetch(endpoint, {
                     method: 'POST',
                     headers: {
-                        // Header di autenticazione ufficiale di Pruna
-                        'apikey': apiKey,
-                        'Content-Type': 'application/json',
-                        // Specifica il modello direttamente negli header
-                        'Model': 'p-image',
-                        // Richiede il risultato subito senza fare code asincrone
-                        'Try-Sync': 'true' 
+                        // Header custom sicuri che passano attraverso il proxy Netlify
+                        'x-pruna-key': apiKey,
+                        'x-pruna-model': prunaModel,
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(payload)
                 });
@@ -137,26 +252,22 @@
                 const data = await response.json();
                 console.log("Risposta API:", data);
 
-                // La risposta sincrona con Try-Sync di Pruna include "generation_url" in caso di successo
                 if (data.status === "succeeded" && data.generation_url) {
-                    // Pruna spesso restituisce percorsi relativi. Prepariamoci ad un URL relativo o assoluto.
                     const imageUrl = data.generation_url.startsWith('http') 
                         ? data.generation_url 
                         : `https://api.pruna.ai${data.generation_url}`;
                     
-                    resultDiv.innerHTML = `<img src="${imageUrl}" alt="Immagine Generata">`;
+                    resultDiv.innerHTML = `<img src="${imageUrl}" alt="Immagine Generata" onload="this.style.opacity=1" style="opacity:0;">`;
                 } else if (data.status) {
-                    // Nel caso ci mettesse troppo e ti restituisse una coda
-                    resultDiv.innerHTML = `<p>La richiesta è in stato: ${data.status}. Controlla la console.</p>`;
+                    resultDiv.innerHTML = `<p>La richiesta è in stato: <strong>${data.status}</strong>. Controlla la console.</p>`;
                 } else {
-                    resultDiv.innerHTML = `<p class="error">Formato di risposta sconosciuto, guarda la console.</p>`;
+                    resultDiv.innerHTML = `<p class="error">Formato di risposta sconosciuto, guarda la console per i dettagli.</p>`;
                 }
 
             } catch (error) {
                 console.error("Errore:", error);
                 resultDiv.innerHTML = `<p class="error">Si è verificato un errore: ${error.message}</p>`;
             } finally {
-                // Nascondi il testo di caricamento a fine operazione
                 loadingDiv.style.display = 'none';
             }
         }
