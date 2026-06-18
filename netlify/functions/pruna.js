@@ -1,12 +1,8 @@
-// netlify/functions/pruna.js
-
 exports.handler = async function(event, context) {
-    // Il proxy deve rispondere solo alle richieste POST inviate dal tuo HTML
     if (event.httpMethod !== "POST") {
         return { statusCode: 405, body: "Metodo non consentito" };
     }
 
-    // Recuperiamo la chiave e il modello che l'app HTML ci sta inviando
     const apiKey = event.headers['x-pruna-key'];
     const model = event.headers['x-pruna-model'] || 'p-image';
 
@@ -15,8 +11,13 @@ exports.handler = async function(event, context) {
     }
 
     try {
-        // Questa è la CHIAMATA VERA verso i server di Pruna. 
-        // Partendo da un server (Netlify), Pruna l'accetterà senza blocchi CORS.
+        // FIX: Se l'immagine è pesante, Netlify codifica il body in Base64. 
+        // Questa riga lo "dezippa" riportandolo al formato JSON originale.
+        let requestBody = event.body;
+        if (event.isBase64Encoded) {
+            requestBody = Buffer.from(event.body, 'base64').toString('utf-8');
+        }
+
         const response = await fetch('https://api.pruna.ai/v1/predictions', {
             method: 'POST',
             headers: {
@@ -25,12 +26,11 @@ exports.handler = async function(event, context) {
                 'Model': model,
                 'Try-Sync': 'true'
             },
-            body: event.body // Inoltriamo esattamente il payload (prompt + immagine) che arriva dall'HTML
+            body: requestBody
         });
 
         const data = await response.json();
 
-        // Restituiamo la risposta di Pruna al nostro file HTML
         return {
             statusCode: response.status,
             body: JSON.stringify(data)
