@@ -5,173 +5,82 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pruna AI Studio Pro</title>
     <style>
-        :root {
-            --bg-color: #f5f5f7;
-            --container-bg: rgba(255, 255, 255, 0.7);
-            --border-color: rgba(255, 255, 255, 0.4);
-            --text-color: #1d1d1f;
-            --accent-color: #0071e3;
-            --accent-hover: #0077ed;
-            --error-color: #ff3b30;
-            --radius: 16px;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "San Francisco", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg-color);
-            background-image: radial-gradient(circle at 50% -20%, #e2e2e8, #f5f5f7);
-            color: var(--text-color);
-            max-width: 680px;
-            margin: 60px auto;
-            padding: 0 20px;
-        }
-
-        .glass-container {
-            background: var(--container-bg);
-            backdrop-filter: blur(20px);
-            border-radius: var(--radius);
-            border: 1px solid var(--border-color);
-            padding: 40px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.05);
-        }
-
-        h2 { text-align: center; font-weight: 600; margin-bottom: 30px; }
-
-        label { font-weight: 500; display: block; margin: 20px 0 8px 0; font-size: 14px; }
-
-        input, textarea, select {
-            width: 100%; padding: 14px; border: 1px solid #d2d2d7;
-            border-radius: 12px; box-sizing: border-box; font-size: 15px;
-        }
-
-        button {
-            width: 100%; padding: 16px; margin-top: 30px;
-            background-color: var(--accent-color); color: white;
-            border: none; border-radius: 12px; font-weight: 600; cursor: pointer;
-        }
-
-        #loading { text-align: center; margin-top: 25px; color: var(--accent-color); font-weight: 500; display: none; }
+        :root { --bg-color: #f5f5f7; --container-bg: rgba(255, 255, 255, 0.7); --accent-color: #0071e3; --radius: 16px; }
+        body { font-family: -apple-system, sans-serif; background-color: var(--bg-color); max-width: 680px; margin: 60px auto; padding: 0 20px; }
+        .glass-container { background: var(--container-bg); backdrop-filter: blur(20px); border-radius: var(--radius); padding: 40px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.05); }
+        input, textarea, select { width: 100%; padding: 14px; border: 1px solid #d2d2d7; border-radius: 12px; margin-top: 8px; }
+        button { width: 100%; padding: 16px; margin-top: 30px; background-color: var(--accent-color); color: white; border: none; border-radius: 12px; font-weight: 600; cursor: pointer; }
+        #loading { text-align: center; margin-top: 25px; color: var(--accent-color); display: none; }
         #result { margin-top: 30px; text-align: center; }
         #result img { max-width: 100%; border-radius: var(--radius); }
-        .error { color: var(--error-color); padding: 12px; background: rgba(255, 59, 48, 0.1); border-radius: 8px; }
+        .error { color: #ff3b30; padding: 12px; background: rgba(255, 59, 48, 0.1); border-radius: 8px; }
     </style>
 </head>
 <body>
-
     <div class="glass-container">
         <h2>Pruna AI Studio Pro</h2>
-
-        <label for="apiKey">La tua API Key</label>
+        <label>API Key</label>
         <input type="password" id="apiKey" placeholder="Incolla qui la chiave...">
-
-        <label for="actionSelect">Modalità Operativa</label>
+        <label>Modalità</label>
         <select id="actionSelect" onchange="aggiornaInterfaccia()">
-            <option value="generate">Crea Nuova Immagine (Solo testo)</option>
-            <option value="edit">Fotoritocco o Clone Volto</option>
+            <option value="generate">Crea Nuova Immagine</option>
+            <option value="edit">Fotoritocco / Clone</option>
             <option value="upscale">Migliora Risoluzione 4x</option>
         </select>
-
-        <div id="promptGroup">
-            <label for="prompt">Prompt Descrittivo</label>
-            <textarea id="prompt" rows="4">A cinematic portrait of this person as a futuristic cyberpunk hacker...</textarea>
-        </div>
-
-        <div id="imageGroup" style="display: none;">
-            <label for="imageUrls">URL Immagini (Incolla un link diretto per riga)</label>
-            <textarea id="imageUrls" rows="3" placeholder="https://tuoserver.com/foto.jpg"></textarea>
-        </div>
-
+        <div id="promptGroup"><label>Prompt</label><textarea id="prompt" rows="4">A cinematic portrait of this person...</textarea></div>
+        <div id="imageGroup" style="display: none;"><label>URL Immagini (uno per riga)</label><textarea id="imageUrls" rows="3"></textarea></div>
         <button onclick="eseguiAzione()">Elabora</button>
-
         <div id="loading">Comunicazione con Pruna in corso...</div>
         <div id="result"></div>
     </div>
-
     <script>
         function aggiornaInterfaccia() {
-            const action = document.getElementById('actionSelect').value;
-            document.getElementById('promptGroup').style.display = (action === 'upscale') ? 'none' : 'block';
-            document.getElementById('imageGroup').style.display = (action === 'generate') ? 'none' : 'block';
+            const a = document.getElementById('actionSelect').value;
+            document.getElementById('promptGroup').style.display = (a === 'upscale') ? 'none' : 'block';
+            document.getElementById('imageGroup').style.display = (a === 'generate') ? 'none' : 'block';
         }
-
         async function eseguiAzione() {
             const apiKey = document.getElementById('apiKey').value.trim();
             const action = document.getElementById('actionSelect').value;
             const promptTesto = document.getElementById('prompt').value.trim();
-            const imageUrlsRaw = document.getElementById('imageUrls').value;
-            
+            const urlsArray = document.getElementById('imageUrls').value.split('\n').filter(u => u.trim() !== '');
             const loadingDiv = document.getElementById('loading');
             const resultDiv = document.getElementById('result');
-
             if (!apiKey) { alert("Inserisci API Key."); return; }
             loadingDiv.style.display = 'block';
             resultDiv.innerHTML = '';
-            resultDiv.removeAttribute('data-tentativi');
-
-            const endpoint = '/.netlify/functions/pruna';
-            let prunaModel = '';
+            
             let payload = { input: {} };
-
-            const urlsArray = imageUrlsRaw.split('\n').map(u => u.trim()).filter(u => u !== '');
+            let prunaModel = '';
+            if (action === 'generate') { prunaModel = 'p-image'; payload.input.prompt = promptTesto; }
+            else if (action === 'edit') { prunaModel = 'p-image-edit'; payload.input.prompt = promptTesto; payload.input.images = urlsArray; }
+            else { prunaModel = 'p-image-upscale'; payload.input.image = urlsArray[0]; }
 
             try {
-                if (action === 'generate') {
-                    prunaModel = 'p-image';
-                    payload.input.prompt = promptTesto;
-                } else if (action === 'edit') {
-                    prunaModel = 'p-image-edit';
-                    payload.input.prompt = promptTesto;
-                    payload.input.images = urlsArray;
-                } else if (action === 'upscale') {
-                    prunaModel = 'p-image-upscale';
-                    payload.input.image = urlsArray[0];
-                }
-
-                const response = await fetch(endpoint, {
+                const res = await fetch('/.netlify/functions/pruna', {
                     method: 'POST',
                     headers: { 'x-pruna-key': apiKey, 'x-pruna-model': prunaModel, 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-
-                const data = await response.json();
-                if (data.status === "succeeded" || data.status === "succeeded") {
-                    mostraImmagine(data.generation_url, resultDiv);
-                    loadingDiv.style.display = 'none';
-                } else if (data.get_url) {
-                    controllaStato(data.get_url, apiKey, endpoint, resultDiv, loadingDiv);
-                } else {
-                    throw new Error(JSON.stringify(data));
-                }
-            } catch (error) {
-                resultDiv.innerHTML = `<p class="error">${error.message}</p>`;
-                loadingDiv.style.display = 'none';
-            }
+                const data = await res.json();
+                if (data.get_url) controllaStato(data.get_url, apiKey, resultDiv, loadingDiv);
+                else if (data.generation_url) mostraImmagine(data.generation_url, resultDiv, loadingDiv);
+                else throw new Error(JSON.stringify(data));
+            } catch (e) { resultDiv.innerHTML = `<p class="error">${e.message}</p>`; loadingDiv.style.display = 'none'; }
         }
-
-        async function controllaStato(jobUrl, apiKey, endpoint, resultDiv, loadingDiv) {
-            const tentativi = parseInt(resultDiv.getAttribute('data-tentativi') || '0') + 1;
-            resultDiv.setAttribute('data-tentativi', tentativi);
-            resultDiv.innerHTML = `<p style="color: #e67e22;">Attesa elaborazione... (Controllo #${tentativi})</p>`;
-
-            const response = await fetch(endpoint, {
-                method: 'POST',
-                headers: { 'x-pruna-key': apiKey, 'x-pruna-check-url': jobUrl }
-            });
-            const data = await response.json();
-
-            if (data.status === 'succeeded') {
-                mostraImmagine(data.generation_url, resultDiv);
-                loadingDiv.style.display = 'none';
-            } else {
-                setTimeout(() => controllaStato(jobUrl, apiKey, endpoint, resultDiv, loadingDiv), 3000);
-            }
+        async function controllaStato(url, key, div, load) {
+            const tentativi = parseInt(div.getAttribute('data-tentativi') || '0') + 1;
+            div.setAttribute('data-tentativi', tentativi);
+            div.innerHTML = `<p>Attesa... (Controllo #${tentativi})</p>`;
+            const res = await fetch('/.netlify/functions/pruna', { method: 'POST', headers: { 'x-pruna-key': key, 'x-pruna-check-url': url } });
+            const data = await res.json();
+            if (data.status === 'succeeded') mostraImmagine(data.generation_url, div, load);
+            else setTimeout(() => controllaStato(url, key, div, load), 3000);
         }
-
-        function mostraImmagine(url, div) {
-            const finalImageUrl = url.startsWith('http') ? url : `https://api.pruna.ai${url}`;
-            div.innerHTML = `<img src="${finalImageUrl}">`;
+        function mostraImmagine(url, div, load) {
+            div.innerHTML = `<img src="${url.startsWith('http') ? url : 'https://api.pruna.ai' + url}">`;
+            load.style.display = 'none';
         }
-
         aggiornaInterfaccia();
     </script>
 </body>
