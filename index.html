@@ -1,3 +1,12 @@
+Hai individuato un bug causato da un piccolo errore di battitura (sintassi) nel codice JavaScript del file che hai caricato.
+
+Se guardi attentamente il codice del file `pruna_error.html` intorno alla riga 168, noterai che ci sono **due parentesi graffe chiuse di troppo** `}` subito dopo il blocco dell'upscale.
+
+Questo errore di sintassi fa "schiantare" l'intero blocco JavaScript all'avvio della pagina. Di conseguenza, il browser non riesce a caricare la funzione che fa apparire e scomparire il campo dell'immagine quando cambi l'opzione nel menu a tendina, lasciando il campo nascosto per sempre.
+
+Ecco il file HTML completo e ripulito dall'errore. Copia e sostituisci tutto: il menu a tendina tornerà a funzionare all'istante, mostrando il campo URL quando selezioni Fotoritocco o Upscale!
+
+```html
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -226,8 +235,6 @@
                         throw new Error("Per l'upscale devi inserire un URL valido!");
                     }
                 }
-                    }
-                }
 
                 // Chiamata ultra-leggera verso Netlify
                 const response = await fetch(endpoint, {
@@ -272,3 +279,7 @@
     </script>
 </body>
 </html>
+
+```
+
+Aggiorna il file su GitHub e vedrai che tutto riprenderà a funzionare correttamente!
