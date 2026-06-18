@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generatore Immagini - Pruna API</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            max-width: 600px;
+            margin: 40px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        h2 {
+            text-align: center;
+            color: #2c3e50;
+        }
+        label {
+            font-weight: bold;
+            display: block;
+            margin-top: 15px;
+        }
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            margin-top: 20px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        #loading {
+            text-align: center;
+            margin-top: 20px;
+            color: #e67e22;
+            font-weight: bold;
+            display: none;
+        }
+        #result {
+            margin-top: 20px;
+            text-align: center;
+        }
+        #result img {
+            max-width: 100%;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .error {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Test API Pruna - Immagini</h2>
+
+    <label for="apiKey">La tua API Key:</label>
+    <input type="password" id="apiKey" placeholder="Incolla qui la chiave API...">
+
+    <label for="prompt">Cosa vuoi generare?</label>
+    <input type="text" id="prompt" value="A highly detailed, cinematic stylized portrait of a beautiful dog named Luna, vibrant colors, 8k resolution, studio lighting">
+
+    <button onclick="generaImmagine()">Genera Immagine</button>
+
+    <div id="loading">Generazione in corso, attendi qualche secondo...</div>
+    
+    <div id="result">
+        </div>
+
+    <script>
+        async function generaImmagine() {
+            const apiKey = document.getElementById('apiKey').value.trim();
+            const promptTesto = document.getElementById('prompt').value.trim();
+            const loadingDiv = document.getElementById('loading');
+            const resultDiv = document.getElementById('result');
+
+            if (!apiKey) {
+                alert("Per favore, inserisci la tua API Key.");
+                return;
+            }
+
+            // Mostra il testo di caricamento e svuota il risultato precedente
+            loadingDiv.style.display = 'block';
+            resultDiv.innerHTML = '';
+
+            // Endpoint UFFICIALE DIRETTO di Pruna (Proxy rimosso)
+            const endpoint = 'https://api.pruna.ai/v1/predictions';
+
+            // Il payload per Pruna prevede solo "input"
+            const payload = {
+                input: {
+                    prompt: promptTesto,
+                    aspect_ratio: "1:1"
+                }
+            };
+
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        // Header di autenticazione ufficiale di Pruna
+                        'apikey': apiKey,
+                        'Content-Type': 'application/json',
+                        // Specifica il modello direttamente negli header
+                        'Model': 'p-image',
+                        // Richiede il risultato subito senza fare code asincrone
+                        'Try-Sync': 'true' 
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Errore HTTP: ${response.status} - ${errorText}`);
+                }
+
+                const data = await response.json();
+                console.log("Risposta API:", data);
+
+                // La risposta sincrona con Try-Sync di Pruna include "generation_url" in caso di successo
+                if (data.status === "succeeded" && data.generation_url) {
+                    // Pruna spesso restituisce percorsi relativi. Prepariamoci ad un URL relativo o assoluto.
+                    const imageUrl = data.generation_url.startsWith('http') 
+                        ? data.generation_url 
+                        : `https://api.pruna.ai${data.generation_url}`;
+                    
+                    resultDiv.innerHTML = `<img src="${imageUrl}" alt="Immagine Generata">`;
+                } else if (data.status) {
+                    // Nel caso ci mettesse troppo e ti restituisse una coda
+                    resultDiv.innerHTML = `<p>La richiesta è in stato: ${data.status}. Controlla la console.</p>`;
+                } else {
+                    resultDiv.innerHTML = `<p class="error">Formato di risposta sconosciuto, guarda la console.</p>`;
+                }
+
+            } catch (error) {
+                console.error("Errore:", error);
+                resultDiv.innerHTML = `<p class="error">Si è verificato un errore: ${error.message}</p>`;
+            } finally {
+                // Nascondi il testo di caricamento a fine operazione
+                loadingDiv.style.display = 'none';
+            }
+        }
+    </script>
+
+</body>
+</html>
