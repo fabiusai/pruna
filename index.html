@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generatore Immagini - Pruna API (Netlify)</title>
+    <title>Pruna AI Studio - Multi Tool</title>
     <style>
         :root {
             --bg-color: #f5f5f7;
@@ -56,7 +56,8 @@
 
         input[type="password"],
         textarea,
-        input[type="file"] {
+        input[type="file"],
+        select {
             width: 100%;
             padding: 14px;
             border: 1px solid #d2d2d7;
@@ -68,8 +69,14 @@
             transition: all 0.2s ease;
         }
 
+        select {
+            appearance: none;
+            cursor: pointer;
+        }
+
         input[type="password"]:focus,
-        textarea:focus {
+        textarea:focus,
+        select:focus {
             outline: none;
             border-color: var(--accent-color);
             box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.1);
@@ -152,17 +159,28 @@
     <div class="glass-container">
         <h2>Pruna AI Studio</h2>
 
-        <label for="apiKey">La tua API Key:</label>
+        <label for="apiKey">La tua API Key</label>
         <input type="password" id="apiKey" placeholder="Incolla qui la chiave...">
 
-        <label for="prompt">Prompt Descrittivo</label>
-        <textarea id="prompt" rows="4">Japanese girl Hero smiles, wears a kimono, serves japanese tea to the viewer, same artistic style</textarea>
+        <label for="actionSelect">Modalità Operativa</label>
+        <select id="actionSelect" onchange="aggiornaInterfaccia()">
+            <option value="generate">Crea Nuova Immagine (Solo testo)</option>
+            <option value="edit">Fotoritocco Guidato (Testo + Immagine)</option>
+            <option value="upscale">Migliora Risoluzione 4x (Solo Immagine)</option>
+        </select>
 
-        <label for="imageInput">Immagine di Riferimento (Opzionale per fotoritocco)</label>
-        <input type="file" id="imageInput" accept="image/png, image/jpeg, image/webp" onchange="previewImage(event)">
-        <img id="imagePreview" alt="Anteprima immagine caricata">
+        <div id="promptGroup">
+            <label for="prompt">Prompt Descrittivo</label>
+            <textarea id="prompt" rows="4">Japanese girl Hero smiles, wears a kimono...</textarea>
+        </div>
 
-        <button onclick="generaImmagine()">Genera Immagine</button>
+        <div id="imageGroup" style="display: none;">
+            <label for="imageInput">Carica Immagine Base</label>
+            <input type="file" id="imageInput" accept="image/png, image/jpeg, image/webp" onchange="previewImage(event)">
+            <img id="imagePreview" alt="Anteprima immagine caricata">
+        </div>
+
+        <button onclick="eseguiAzione()">Elabora</button>
 
         <div id="loading">Elaborazione in corso tramite Netlify, attendi...</div>
         
@@ -170,11 +188,16 @@
     </div>
 
     <script>
-        // Funzione per l'anteprima dell'immagine
+        // Mostra o nascondi i campi in base alla modalità scelta
+        function aggiornaInterfaccia() {
+            const action = document.getElementById('actionSelect').value;
+            document.getElementById('promptGroup').style.display = (action === 'upscale') ? 'none' : 'block';
+            document.getElementById('imageGroup').style.display = (action === 'generate') ? 'none' : 'block';
+        }
+
         function previewImage(event) {
             const file = event.target.files[0];
             const preview = document.getElementById('imagePreview');
-            
             if (file) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
@@ -188,7 +211,6 @@
             }
         }
 
-        // Conversione in Base64
         function getBase64(file) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -198,8 +220,9 @@
             });
         }
 
-        async function generaImmagine() {
+        async function eseguiAzione() {
             const apiKey = document.getElementById('apiKey').value.trim();
+            const action = document.getElementById('actionSelect').value;
             const promptTesto = document.getElementById('prompt').value.trim();
             const imageInput = document.getElementById('imageInput');
             const loadingDiv = document.getElementById('loading');
@@ -213,30 +236,41 @@
             loadingDiv.style.display = 'block';
             resultDiv.innerHTML = '';
 
-            // Il nuovo endpoint punta al backend interno di Netlify
             const endpoint = '/.netlify/functions/pruna';
+            let prunaModel = '';
+            let payload = { input: {} };
 
-            const payload = {
-                input: {
-                    prompt: promptTesto,
-                    aspect_ratio: "1:1"
-                }
-            };
-
+            // Logica di instradamento in base alla tendina
             try {
-                let prunaModel = 'p-image';
-                
-                // Se c'è un'immagine caricata, la allega e cambia il modello
-                if (imageInput.files.length > 0) {
-                    const base64String = await getBase64(imageInput.files[0]);
-                    payload.input.image = base64String; 
+                if (action === 'generate') {
+                    prunaModel = 'p-image';
+                    payload.input.prompt = promptTesto;
+                    payload.input.aspect_ratio = "1:1";
+                } 
+                else if (action === 'edit') {
                     prunaModel = 'p-image-edit';
+                    payload.input.prompt = promptTesto;
+                    if (imageInput.files.length > 0) {
+                        payload.input.image = await getBase64(imageInput.files[0]);
+                    } else {
+                        throw new Error("Per il fotoritocco devi caricare un'immagine!");
+                    }
+                } 
+                else if (action === 'upscale') {
+                    prunaModel = 'p-image-upscale';
+                    if (imageInput.files.length > 0) {
+                        payload.input.image = await getBase64(imageInput.files[0]);
+                        // Il modello p-image-upscale usa questi parametri matematici invece del prompt
+                        payload.input.upscale_mode = "factor";
+                        payload.input.factor = 4;
+                    } else {
+                        throw new Error("Per l'upscale devi caricare un'immagine!");
+                    }
                 }
 
                 const response = await fetch(endpoint, {
                     method: 'POST',
                     headers: {
-                        // Header custom sicuri che passano attraverso il proxy Netlify
                         'x-pruna-key': apiKey,
                         'x-pruna-model': prunaModel,
                         'Content-Type': 'application/json'
@@ -256,22 +290,23 @@
                     const imageUrl = data.generation_url.startsWith('http') 
                         ? data.generation_url 
                         : `https://api.pruna.ai${data.generation_url}`;
-                    
                     resultDiv.innerHTML = `<img src="${imageUrl}" alt="Immagine Generata" onload="this.style.opacity=1" style="opacity:0;">`;
                 } else if (data.status) {
-                    resultDiv.innerHTML = `<p>La richiesta è in stato: <strong>${data.status}</strong>. Controlla la console.</p>`;
+                    resultDiv.innerHTML = `<p>Stato elaborazione: <strong>${data.status}</strong>. Controlla la console.</p>`;
                 } else {
                     resultDiv.innerHTML = `<p class="error">Formato di risposta sconosciuto, guarda la console per i dettagli.</p>`;
                 }
 
             } catch (error) {
                 console.error("Errore:", error);
-                resultDiv.innerHTML = `<p class="error">Si è verificato un errore: ${error.message}</p>`;
+                resultDiv.innerHTML = `<p class="error">${error.message}</p>`;
             } finally {
                 loadingDiv.style.display = 'none';
             }
         }
-    </script>
 
+        // Inizializza l'interfaccia corretta al caricamento
+        aggiornaInterfaccia();
+    </script>
 </body>
 </html>
