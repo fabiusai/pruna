@@ -11,8 +11,7 @@ exports.handler = async function(event, context) {
     }
 
     try {
-        // FIX: Se l'immagine è pesante, Netlify codifica il body in Base64. 
-        // Questa riga lo "dezippa" riportandolo al formato JSON originale.
+        // Manteniamo questa sicurezza nel caso Netlify decida comunque di codificare il payload
         let requestBody = event.body;
         if (event.isBase64Encoded) {
             requestBody = Buffer.from(event.body, 'base64').toString('utf-8');
