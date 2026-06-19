@@ -67,7 +67,6 @@
     <script>
         function updateUI() {
             const mode = document.getElementById('actionSelect').value;
-            // Gestione visibilità sezioni con controllo di sicurezza
             document.getElementById('imageInputSection').style.display = (mode === 'generate') ? 'none' : 'block';
             document.getElementById('promptSection').style.display = (mode === 'upscale') ? 'none' : 'block';
             document.getElementById('settingsSection').style.display = (mode === 'upscale') ? 'none' : 'flex';
@@ -81,7 +80,8 @@
             statusDiv.style.display = 'block';
             statusDiv.innerHTML = "Inviando richiesta...";
 
-            const payload = { input: {
+            // Payload base
+            let payload = { input: {
                 prompt: document.getElementById('prompt').value,
                 aspect_ratio: document.getElementById('aspectRatio').value,
                 seed: parseInt(document.getElementById('seed').value) || undefined
@@ -90,9 +90,23 @@
             const urls = document.getElementById('imageUrls').value.split('\n').filter(u => u.trim());
             let model = 'p-image';
 
-            if(mode === 'image_to_image') { model = 'p-image-to-image'; payload.input.images = urls; }
-            else if(mode === 'edit') { model = 'p-image-edit'; payload.input.images = urls; }
-            else if(mode === 'upscale') { model = 'p-image-upscale'; payload.input.image = urls[0]; delete payload.input.prompt; }
+            // Logica specifica per modalità
+            if(mode === 'image_to_image') { 
+                model = 'p-image-to-image'; 
+                payload.input.images = urls; 
+            }
+            else if(mode === 'edit') { 
+                model = 'p-image-edit'; 
+                payload.input.images = urls; 
+            }
+            else if(mode === 'upscale') { 
+                model = 'p-image-upscale'; 
+                payload.input.image = urls[0]; 
+                // PULIZIA: Rimuoviamo campi non supportati dall'upscale
+                delete payload.input.prompt;
+                delete payload.input.aspect_ratio;
+                delete payload.input.seed;
+            }
 
             try {
                 const res = await fetch('/.netlify/functions/pruna', {
