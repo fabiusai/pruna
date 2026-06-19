@@ -4,12 +4,13 @@ exports.handler = async function(event, context) {
     }
 
     const apiKey = event.headers['x-pruna-key'];
-    const model = event.headers['x-pruna-model'] || 'p-image'; // Fallback di sicurezza
+    const model = event.headers['x-pruna-model'] || 'p-image';
 
     if (!apiKey) {
         return { statusCode: 401, body: JSON.stringify({ error: "API Key mancante" }) };
     }
 
+    // Gestione del polling (controllo stato)
     const checkUrl = event.headers['x-pruna-check-url'];
     if (checkUrl) {
         try {
@@ -24,13 +25,14 @@ exports.handler = async function(event, context) {
         }
     }
 
+    // Gestione della nuova richiesta
     try {
         const response = await fetch('https://api.pruna.ai/v1/predictions', {
             method: 'POST',
             headers: {
                 'apikey': apiKey,
                 'Content-Type': 'application/json',
-                'Model': model, // Assicurato il passaggio del modello corretto
+                'Model': model,
                 'Try-Sync': 'false'
             },
             body: event.body
