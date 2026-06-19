@@ -2,136 +2,75 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pruna AI Studio Pro</title>
+    <title>Pruna AI Studio Pro - v1.1</title>
     <style>
-        :root { --bg-color: #f5f5f7; --container-bg: #ffffff; --accent-color: #0071e3; --radius: 12px; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: var(--bg-color); max-width: 700px; margin: 40px auto; padding: 20px; }
-        .glass-container { background: var(--container-bg); padding: 30px; border-radius: var(--radius); box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
-        .row { display: flex; gap: 15px; margin-top: 15px; }
-        .col { flex: 1; }
-        label { display: block; font-weight: 600; margin-bottom: 5px; font-size: 13px; color: #333; }
-        input, textarea, select { width: 100%; padding: 12px; border: 1px solid #d2d2d7; border-radius: 8px; box-sizing: border-box; }
-        button { width: 100%; padding: 14px; margin-top: 25px; background: var(--accent-color); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
-        #result { margin-top: 30px; text-align: center; }
-        #result img { max-width: 100%; border-radius: 8px; border: 1px solid #eee; }
-        .status-text { color: var(--accent-color); font-weight: 500; margin-top: 15px; text-align: center; }
-        .error { color: #ff3b30; padding: 12px; background: rgba(255, 59, 48, 0.1); border-radius: 8px; margin-top: 15px; }
+        body { font-family: sans-serif; background: #f5f5f7; padding: 20px; max-width: 600px; margin: auto; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        input, textarea, select { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background: #0071e3; color: white; border: none; border-radius: 6px; cursor: pointer; }
+        #res { margin-top: 20px; text-align: center; }
+        #res img { max-width: 100%; border-radius: 8px; }
     </style>
 </head>
 <body>
-    <div class="glass-container">
-        <h2>Pruna AI Studio Pro</h2>
-        
-        <label>API Key</label>
-        <input type="password" id="apiKey" placeholder="Inserisci la tua chiave...">
-
-        <label>Modalità di Lavoro</label>
-        <select id="actionSelect" onchange="updateUI()">
-            <option value="generate">Generazione da Testo (Text-to-Image)</option>
-            <option value="image_to_image">Generazione Guidata (Image-to-Image)</option>
-            <option value="edit">Fotoritocco Avanzato (Inpainting)</option>
+    <div class="card">
+        <h2>Pruna AI Studio</h2>
+        <input type="password" id="key" placeholder="API Key">
+        <select id="mode" onchange="updateUI()">
+            <option value="generate">Text-to-Image</option>
+            <option value="image_to_image">Image-to-Image</option>
+            <option value="edit">Inpainting (Edit)</option>
             <option value="upscale">Upscale 4x</option>
         </select>
-
-        <div id="imageInputSection">
-            <label>URL Immagini (uno per riga)</label>
-            <textarea id="imageUrls" rows="3" placeholder="https://..."></textarea>
-        </div>
-
-        <div id="promptSection">
-            <label>Prompt Descrittivo</label>
-            <textarea id="prompt" rows="3">A cinematic portrait...</textarea>
-        </div>
-
-        <div class="row" id="settingsSection">
-            <div class="col">
-                <label>Aspect Ratio</label>
-                <select id="aspectRatio">
-                    <option value="1:1">1:1 (Square)</option>
-                    <option value="16:9">16:9 (Landscape)</option>
-                    <option value="9:16">9:16 (Portrait)</option>
-                </select>
-            </div>
-            <div class="col">
-                <label>Seed (Opzionale)</label>
-                <input type="number" id="seed" placeholder="Es: 12345">
-            </div>
-        </div>
-
-        <button onclick="runJob()">Avvia Elaborazione</button>
-        <div id="status" class="status-text" style="display:none;"></div>
-        <div id="result"></div>
+        <div id="imgSec"><textarea id="urls" placeholder="URL immagini (uno per riga)"></textarea></div>
+        <div id="promptSec"><textarea id="prompt">A cinematic portrait...</textarea></div>
+        <button onclick="run()">Elabora</button>
+        <div id="res"></div>
     </div>
 
     <script>
+        const configs = {
+            generate: { model: 'p-image', usePrompt: true, useImages: false, useParams: true },
+            image_to_image: { model: 'p-image-to-image', usePrompt: true, useImages: true, useParams: true },
+            edit: { model: 'p-image-edit', usePrompt: true, useImages: true, useParams: true },
+            upscale: { model: 'p-image-upscale', usePrompt: false, useImages: true, useParams: false }
+        };
+
         function updateUI() {
-            const mode = document.getElementById('actionSelect').value;
-            document.getElementById('imageInputSection').style.display = (mode === 'generate') ? 'none' : 'block';
-            document.getElementById('promptSection').style.display = (mode === 'upscale') ? 'none' : 'block';
-            document.getElementById('settingsSection').style.display = (mode === 'upscale') ? 'none' : 'flex';
+            const m = configs[document.getElementById('mode').value];
+            document.getElementById('imgSec').style.display = m.useImages ? 'block' : 'none';
+            document.getElementById('promptSec').style.display = m.usePrompt ? 'block' : 'none';
         }
 
-        async function runJob() {
-            const apiKey = document.getElementById('apiKey').value.trim();
-            const mode = document.getElementById('actionSelect').value;
-            const statusDiv = document.getElementById('status');
-            
-            statusDiv.style.display = 'block';
-            statusDiv.innerHTML = "Inviando richiesta...";
+        async function run() {
+            const mode = document.getElementById('mode').value;
+            const conf = configs[mode];
+            const payload = { input: {} };
 
-            // Payload base
-            let payload = { input: {
-                prompt: document.getElementById('prompt').value,
-                aspect_ratio: document.getElementById('aspectRatio').value,
-                seed: parseInt(document.getElementById('seed').value) || undefined
-            }};
-
-            const urls = document.getElementById('imageUrls').value.split('\n').filter(u => u.trim());
-            let model = 'p-image';
-
-            // Logica specifica per modalità
-            if(mode === 'image_to_image') { 
-                model = 'p-image-to-image'; 
-                payload.input.images = urls; 
+            if(conf.usePrompt) payload.input.prompt = document.getElementById('prompt').value;
+            if(conf.useImages) {
+                const urls = document.getElementById('urls').value.split('\n').filter(u => u.trim());
+                payload.input[mode === 'upscale' ? 'image' : 'images'] = mode === 'upscale' ? urls[0] : urls;
             }
-            else if(mode === 'edit') { 
-                model = 'p-image-edit'; 
-                payload.input.images = urls; 
-            }
-            else if(mode === 'upscale') { 
-                model = 'p-image-upscale'; 
-                payload.input.image = urls[0]; 
-                // PULIZIA: Rimuoviamo campi non supportati dall'upscale
-                delete payload.input.prompt;
-                delete payload.input.aspect_ratio;
-                delete payload.input.seed;
+            if(conf.useParams) {
+                payload.input.aspect_ratio = "1:1";
             }
 
-            try {
-                const res = await fetch('/.netlify/functions/pruna', {
-                    method: 'POST',
-                    headers: { 'x-pruna-key': apiKey, 'x-pruna-model': model, 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                const data = await res.json();
-                if(data.get_url) pollStatus(data.get_url, apiKey);
-                else if(data.generation_url) showResult(data.generation_url);
-                else throw new Error("Errore API: " + (data.error || JSON.stringify(data)));
-            } catch(e) { statusDiv.innerHTML = `<div class="error">Errore: ${e.message}</div>`; }
-        }
-
-        async function pollStatus(url, key) {
-            const res = await fetch('/.netlify/functions/pruna', { method: 'POST', headers: {'x-pruna-key': key, 'x-pruna-check-url': url}});
+            const res = await fetch('/.netlify/functions/pruna', {
+                method: 'POST',
+                headers: { 'x-pruna-key': document.getElementById('key').value, 'x-pruna-model': conf.model, 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
             const data = await res.json();
-            if(data.status === 'succeeded') showResult(data.generation_url);
-            else if(data.status === 'failed') document.getElementById('status').innerHTML = "Elaborazione fallita.";
-            else { document.getElementById('status').innerHTML = "Stato: " + data.status.toUpperCase() + "..."; setTimeout(() => pollStatus(url, key), 3000); }
+            if(data.get_url) poll(data.get_url, document.getElementById('key').value);
+            else document.getElementById('res').innerHTML = `<img src="${data.generation_url}">`;
         }
 
-        function showResult(url) {
-            document.getElementById('status').style.display = 'none';
-            document.getElementById('result').innerHTML = `<img src="${url.startsWith('http')?url:'https://api.pruna.ai'+url}">`;
+        async function poll(url, key) {
+            const res = await fetch('/.netlify/functions/pruna', { method: 'POST', headers: { 'x-pruna-key': key, 'x-pruna-check-url': url }});
+            const data = await res.json();
+            if(data.status === 'succeeded') document.getElementById('res').innerHTML = `<img src="${data.generation_url}">`;
+            else setTimeout(() => poll(url, key), 3000);
         }
         updateUI();
     </script>
