@@ -70,12 +70,14 @@
 
         .form-row {
             display: flex;
+            flex-wrap: wrap; /* Aggiunto per flessibilità su schermi piccoli */
             gap: 16px;
             margin-bottom: 20px;
         }
 
         .form-col {
             flex: 1;
+            min-width: 130px; /* Previene uno schiacciamento eccessivo dei campi */
         }
 
         label { 
@@ -244,6 +246,7 @@
             </div>
 
             <div id="settingsGrid" class="form-row hidden">
+                
                 <div id="aspectRatioCol" class="form-col hidden">
                     <label for="aspectRatio">Proporzioni</label>
                     <select id="aspectRatio">
@@ -263,8 +266,18 @@
                     </select>
                 </div>
 
+                <div id="videoDurationCol" class="form-col hidden">
+                    <label for="videoDuration">Durata Video</label>
+                    <select id="videoDuration">
+                        <option value="5">5 Secondi</option>
+                        <option value="10">10 Secondi</option>
+                        <option value="15">15 Secondi</option>
+                        <option value="20">20 Secondi</option>
+                    </select>
+                </div>
+
                 <div id="seedCol" class="form-col hidden">
-                    <label for="seed">Seed Fisso (Opzionale)</label>
+                    <label for="seed">Seed (Opzionale)</label>
                     <input type="number" id="seed" placeholder="Es. 42">
                 </div>
             </div>
@@ -285,32 +298,34 @@
             generate: { 
                 model: 'p-image', 
                 reqImg: false, reqAudio: false, reqPrompt: true, reqVidPrompt: false, 
-                showRatio: true, showVidRes: false, showSeed: true, multiImg: false
+                showRatio: true, showVidRes: false, showDuration: false, showSeed: true, multiImg: false
             },
             edit: { 
                 model: 'p-image-edit', 
                 reqImg: true, reqAudio: false, reqPrompt: true, reqVidPrompt: false, 
-                showRatio: true, showVidRes: false, showSeed: true, multiImg: true 
+                showRatio: true, showVidRes: false, showDuration: false, showSeed: true, multiImg: true 
             },
             upscale: { 
                 model: 'p-image-upscale', 
                 reqImg: true, reqAudio: false, reqPrompt: false, reqVidPrompt: false, 
-                showRatio: false, showVidRes: false, showSeed: false, multiImg: false 
+                showRatio: false, showVidRes: false, showDuration: false, showSeed: false, multiImg: false 
             },
             txt2vid: { 
                 model: 'p-video', 
                 reqImg: false, reqAudio: false, reqPrompt: true, reqVidPrompt: false, 
-                showRatio: true, showVidRes: false, showSeed: true, multiImg: false 
+                showRatio: true, showVidRes: true, showDuration: true, showSeed: true, multiImg: false 
             },
             img2vid: { 
+                // Img2Vid eredita il ratio dell'immagine, la durata è personalizzabile
                 model: 'p-video', 
                 reqImg: true, reqAudio: false, reqPrompt: true, reqVidPrompt: false, 
-                showRatio: true, showVidRes: false, showSeed: true, multiImg: false 
+                showRatio: false, showVidRes: true, showDuration: true, showSeed: true, multiImg: false 
             },
             lipsync: { 
+                // Lipsync usa la durata dell'audio, non serve il parametro duration
                 model: 'p-video-avatar', 
                 reqImg: true, reqAudio: true, reqPrompt: false, reqVidPrompt: true, 
-                showRatio: false, showVidRes: true, showSeed: true, multiImg: false 
+                showRatio: false, showVidRes: true, showDuration: false, showSeed: true, multiImg: false 
             }
         };
 
@@ -344,10 +359,11 @@
             toggleVisibility('videoPromptSec', conf.reqVidPrompt);
             
             // Attivazione griglia impostazioni
-            const hasSettings = conf.showRatio || conf.showVidRes || conf.showSeed;
+            const hasSettings = conf.showRatio || conf.showVidRes || conf.showSeed || conf.showDuration;
             toggleVisibility('settingsGrid', hasSettings);
             toggleVisibility('aspectRatioCol', conf.showRatio);
             toggleVisibility('videoResCol', conf.showVidRes);
+            toggleVisibility('videoDurationCol', conf.showDuration);
             toggleVisibility('seedCol', conf.showSeed);
         }
 
@@ -367,7 +383,7 @@
             }
         }
 
-        // Motore di Download Sicuro (Bypassa policy di base salvando blob)
+        // Motore di Download Sicuro
         async function triggerDownload(url, filename) {
             try {
                 const response = await fetch(url);
@@ -400,9 +416,8 @@
                 mediaContainer.innerHTML = `<img src="${finalUrl}" alt="Risultato Generato">`;
             }
             
-            setStatus(null); // Pulisce gli avvisi di attesa
+            setStatus(null);
             
-            // Configura il bottone di download
             downloadBtn.classList.remove('hidden');
             downloadBtn.onclick = () => triggerDownload(finalUrl, `pruna_${Date.now()}.${isVideo ? 'mp4' : 'png'}`);
             document.getElementById('submitBtn').disabled = false;
@@ -416,7 +431,6 @@
             const mode = document.getElementById('mode').value;
             const conf = configs[mode];
             
-            // Reset UI pre-invio
             document.getElementById('submitBtn').disabled = true;
             document.getElementById('result-media').innerHTML = "";
             document.getElementById('downloadBtn').classList.add('hidden');
@@ -440,7 +454,7 @@
                     return setStatus("⚠️ Manca l'URL dell'immagine di riferimento.", 'error');
                 }
                 if (mode === 'upscale' || mode === 'lipsync' || mode === 'img2vid') {
-                    payload.input.image = urls[0]; // Richiedono la stringa singola
+                    payload.input.image = urls[0];
                 } else {
                     payload.input.images = urls;
                 }
@@ -459,6 +473,7 @@
             // 4. Impostazioni Avanzate
             if (conf.showRatio) payload.input.aspect_ratio = document.getElementById('aspectRatio').value;
             if (conf.showVidRes) payload.input.resolution = document.getElementById('videoResolution').value;
+            if (conf.showDuration) payload.input.duration = parseInt(document.getElementById('videoDuration').value, 10);
             
             if (conf.showSeed) {
                 const seedVal = document.getElementById('seed').value;
@@ -507,7 +522,7 @@
                     setStatus("Elaborazione fallita lato server.", 'error');
                     document.getElementById('submitBtn').disabled = false;
                 } else {
-                    setTimeout(() => poll(url, key), 3500); // Check ogni 3.5s
+                    setTimeout(() => poll(url, key), 3500);
                 }
             } catch (e) {
                 setStatus(`Errore di connessione durante l'attesa: ${e.message}`, 'error');
@@ -515,7 +530,6 @@
             }
         }
 
-        // Inizializza interfaccia al caricamento della pagina
         window.onload = updateUI;
     </script>
 </body>
