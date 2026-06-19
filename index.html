@@ -31,6 +31,7 @@
         }
         textarea { height: 100px; resize: vertical; white-space: pre-wrap; }
         
+        /* Griglia per le impostazioni extra */
         .settings-grid {
             display: flex;
             gap: 15px;
@@ -57,7 +58,7 @@
         .download-btn:hover { background: #2da94f; }
         
         #res { margin-top: 25px; text-align: center; }
-        #res img, #res video { max-width: 100%; border-radius: 10px; border: 1px solid #eee; margin-bottom: 10px; }
+        #res img { max-width: 100%; border-radius: 10px; border: 1px solid #eee; margin-bottom: 10px; }
         #status { color: #0071e3; text-align: center; margin-top: 15px; font-weight: 500; font-size: 14px; min-height: 20px;}
         .error-text { color: #ff3b30 !important; }
     </style>
@@ -74,17 +75,11 @@
             <option value="generate">Text-to-Image (p-image)</option>
             <option value="edit">Inpainting/Modifica (p-image-edit)</option>
             <option value="upscale">Migliora Risoluzione 4x (p-image-upscale)</option>
-            <option value="lipsync">Lip-Sync Avatar (p-video-avatar)</option>
         </select>
         
         <div id="imgSec">
-            <label for="urls">URL Immagine di Riferimento</label>
-            <textarea id="urls" placeholder="Inserisci l'URL dell'immagine..."></textarea>
-        </div>
-
-        <div id="audioSec" style="display:none;">
-            <label for="audioUrl">URL File Audio (Voce)</label>
-            <input type="text" id="audioUrl" placeholder="Es. https://iltuosito.com/voce.mp3">
+            <label for="urls">URL Immagini di Riferimento</label>
+            <textarea id="urls" placeholder="Inserisci l'URL dell'immagine (uno per riga).&#10;Es: https://iltuosito.com/foto.jpg"></textarea>
         </div>
         
         <div id="promptSec">
@@ -107,7 +102,7 @@
             </div>
             <div>
                 <label for="seed">Seed (Opzionale)</label>
-                <input type="number" id="seed" placeholder="Es. 42">
+                <input type="number" id="seed" placeholder="Es. 42 (Per risultati riproducibili)">
             </div>
         </div>
 
@@ -117,13 +112,14 @@
     </div>
 
     <script>
+        // Mappa delle configurazioni per ciascun modello
         const configs = {
-            generate: { model: 'p-image', usePrompt: true, useImages: false, hasSettings: true, useAudio: false },
-            edit: { model: 'p-image-edit', usePrompt: true, useImages: true, hasSettings: true, useAudio: false },
-            upscale: { model: 'p-image-upscale', usePrompt: false, useImages: true, hasSettings: false, useAudio: false },
-            lipsync: { model: 'p-video-avatar', usePrompt: false, useImages: true, hasSettings: false, useAudio: true }
+            generate: { model: 'p-image', usePrompt: true, useImages: false, hasSettings: true },
+            edit: { model: 'p-image-edit', usePrompt: true, useImages: true, hasSettings: true },
+            upscale: { model: 'p-image-upscale', usePrompt: false, useImages: true, hasSettings: false }
         };
 
+        // Aggiorna l'interfaccia in base al modello selezionato
         function updateUI() {
             const mode = document.getElementById('mode').value;
             const conf = configs[mode];
@@ -131,115 +127,10 @@
             document.getElementById('imgSec').style.display = conf.useImages ? 'block' : 'none';
             document.getElementById('promptSec').style.display = conf.usePrompt ? 'block' : 'none';
             document.getElementById('settingsSec').style.display = conf.hasSettings ? 'flex' : 'none';
-            document.getElementById('audioSec').style.display = conf.useAudio ? 'block' : 'none';
         }
 
+        // Forza il download dell'immagine aggirando i blocchi CORS base
         async function downloadImage(url) {
-            try {
-                const response = await fetch(url);
-                const blob = await response.blob();
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
-                link.download = `pruna_studio_${Date.now()}`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                URL.revokeObjectURL(link.href);
-            } catch (e) {
-                window.open(url, '_blank');
-            }
-        }
-
-        function handleResult(url) {
-            const baseUrl = 'https://api.pruna.ai';
-            const finalUrl = url.startsWith('http') ? url : baseUrl + url;
-            const mode = document.getElementById('mode').value;
-            
-            let mediaHtml = '';
-            // Se la modalità è lipsync o il file è un video, renderizza il player
-            if (mode === 'lipsync' || finalUrl.endsWith('.mp4')) {
-                mediaHtml = `
-                    <video controls autoplay>
-                        <source src="${finalUrl}" type="video/mp4">
-                        Il tuo browser non supporta la riproduzione video.
-                    </video>
-                `;
-            } else {
-                mediaHtml = `<img src="${finalUrl}" alt="Risultato Pruna AI">`;
-            }
-            
-            document.getElementById('res').innerHTML = `
-                ${mediaHtml}
-                <button class="download-btn" onclick="downloadImage('${finalUrl}')">⬇ Scarica Risultato</button>
-            `;
-            setStatus("", false);
-            toggleButton(false);
-        }
-
-        function setStatus(message, isError = false) {
-            const statusDiv = document.getElementById('status');
-            statusDiv.innerText = message;
-            statusDiv.className = isError ? 'error-text' : '';
-        }
-
-        function toggleButton(disabled) {
-            document.getElementById('submitBtn').disabled = disabled;
-        }
-
-        async function run() {
-            const apiKey = document.getElementById('key').value.trim();
-            if (!apiKey) {
-                setStatus("Inserisci una API Key valida.", true);
-                return;
-            }
-
-            toggleButton(true);
-            setStatus("Inizializzazione elaborazione in corso...");
-            document.getElementById('res').innerHTML = "";
-
-            const mode = document.getElementById('mode').value;
-            const conf = configs[mode];
-            const payload = { input: {} };
-
-            if (conf.usePrompt) {
-                payload.input.prompt = document.getElementById('prompt').value;
-            }
-
-            if (conf.useImages) {
-                const urls = document.getElementById('urls').value.split('\n').filter(u => u.trim() !== '');
-                if (urls.length === 0) {
-                    setStatus("Inserisci almeno un URL di immagine per questa modalità.", true);
-                    toggleButton(false);
-                    return;
-                }
-                
-                if (mode === 'upscale' || mode === 'lipsync') {
-                    payload.input.image = urls[0];
-                } else {
-                    payload.input.images = urls;
-                }
-            }
-
-            if (conf.useAudio) {
-                const audio = document.getElementById('audioUrl').value.trim();
-                if (!audio) {
-                    setStatus("Inserisci un URL audio valido per il lip-sync.", true);
-                    toggleButton(false);
-                    return;
-                }
-                payload.input.audio = audio;
-            }
-
-            if (conf.hasSettings) {
-                const aspectRatio = document.getElementById('aspectRatio').value;
-                const seed = document.getElementById('seed').value;
-                
-                payload.input.aspect_ratio = aspectRatio;
-                if (seed && !isNaN(parseInt(seed))) {
-                    payload.input.seed = parseInt(seed, 10);
-                }
-            }
-
             try {
                 const res = await fetch('/.netlify/functions/pruna', {
                     method: 'POST',
@@ -253,44 +144,26 @@
                 
                 const data = await res.json();
                 
-                if (data.error) throw new Error(data.error.message || data.error);
+                // CATTURA TUTTI GLI ERRORI: Pruna usa sia "error" che "message"
+                const errorMessage = data.error?.message || data.error || data.message;
+                if (errorMessage) throw new Error(errorMessage);
                 
                 if (data.get_url) {
                     poll(data.get_url, apiKey);
                 } else if (data.generation_url) {
                     handleResult(data.generation_url);
                 } else {
-                    throw new Error("Risposta non valida dal server.");
+                    // Se non capiamo la risposta, stampiamo l'intero JSON per fare debug
+                    throw new Error("Risposta imprevista: " + JSON.stringify(data));
                 }
             } catch(e) { 
-                setStatus(`Errore API: ${e.message}`, true);
+                setStatus(`Errore: ${e.message}`, true);
                 toggleButton(false);
+            }
             }
         }
 
-        async function poll(url, key) {
-            setStatus("Elaborazione in corso... Attendi.");
-            try {
-                const res = await fetch('/.netlify/functions/pruna', { 
-                    method: 'POST', 
-                    headers: { 'x-pruna-key': key, 'x-pruna-check-url': url }
-                });
-                const data = await res.json();
-                
-                if (data.status === 'succeeded') {
-                    handleResult(data.generation_url);
-                } else if (data.status === 'failed') {
-                    setStatus("Elaborazione fallita lato server.", true);
-                    toggleButton(false);
-                } else {
-                    setTimeout(() => poll(url, key), 3000);
-                }
-            } catch (e) {
-                setStatus(`Errore durante il controllo dello stato: ${e.message}`, true);
-                toggleButton(false);
-            }
-        }
-
+        // Inizializza l'interfaccia all'avvio
         updateUI();
     </script>
 </body>
