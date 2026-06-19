@@ -7,8 +7,8 @@
         body { font-family: -apple-system, sans-serif; background: #f5f5f7; padding: 20px; max-width: 600px; margin: auto; }
         .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         input, textarea, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
-        textarea { height: 120px; resize: vertical; white-space: pre-wrap; } /* Formattazione preservata */
-        button { width: 100%; padding: 14px; background: #0071e3; color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 10px; }
+        textarea { height: 120px; resize: vertical; white-space: pre-wrap; }
+        button { width: 100%; padding: 14px; background: #0071e3; color: white; border: none; border-radius: 6px; cursor: pointer; }
         .download-btn { background: #34c759; margin-top: 10px; }
         #res { margin-top: 20px; text-align: center; }
         #res img { max-width: 100%; border-radius: 8px; margin-bottom: 10px; }
@@ -34,10 +34,10 @@
 
     <script>
         const configs = {
-            generate: { model: 'p-image', usePrompt: true, useImages: false, useParams: true },
-            image_to_image: { model: 'p-image-to-image', usePrompt: true, useImages: true, useParams: true },
-            edit: { model: 'p-image-edit', usePrompt: true, useImages: true, useParams: true },
-            upscale: { model: 'p-image-upscale', usePrompt: false, useImages: true, useParams: false }
+            generate: { model: 'p-image', usePrompt: true, useImages: false },
+            image_to_image: { model: 'p-image-to-image', usePrompt: true, useImages: true },
+            edit: { model: 'p-image-edit', usePrompt: true, useImages: true },
+            upscale: { model: 'p-image-upscale', usePrompt: false, useImages: true }
         };
 
         function updateUI() {
@@ -77,7 +77,6 @@
                 const urls = document.getElementById('urls').value.split('\n').filter(u => u.trim());
                 payload.input[mode === 'upscale' ? 'image' : 'images'] = mode === 'upscale' ? urls[0] : urls;
             }
-            if(conf.useParams) payload.input.aspect_ratio = "1:1";
 
             document.getElementById('status').innerText = "Elaborazione in corso...";
             try {
@@ -89,8 +88,11 @@
                 const data = await res.json();
                 if(data.get_url) poll(data.get_url, document.getElementById('key').value);
                 else if(data.generation_url) handleResult(data.generation_url);
-                else throw new Error(data.error || "Errore sconosciuto");
-            } catch(e) { document.getElementById('res').innerHTML = `<p style="color:red">Errore: ${e.message}</p>`; }
+                else throw new Error(data.error || "Errore: il modello non ha restituito un URL");
+            } catch(e) { 
+                document.getElementById('status').innerText = "";
+                document.getElementById('res').innerHTML = `<p style="color:red">Errore: ${e.message}</p>`; 
+            }
         }
 
         async function poll(url, key) {
@@ -98,6 +100,7 @@
             const res = await fetch('/.netlify/functions/pruna', { method: 'POST', headers: { 'x-pruna-key': key, 'x-pruna-check-url': url }});
             const data = await res.json();
             if(data.status === 'succeeded') handleResult(data.generation_url);
+            else if(data.status === 'failed') document.getElementById('status').innerText = "Elaborazione fallita.";
             else setTimeout(() => poll(url, key), 3000);
         }
         updateUI();
