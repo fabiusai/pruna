@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>Pruna AI Studio Pro - v1.1</title>
+    <title>Pruna AI Studio Pro</title>
     <style>
         body { font-family: sans-serif; background: #f5f5f7; padding: 20px; max-width: 600px; margin: auto; }
         .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
@@ -10,6 +10,7 @@
         button { width: 100%; padding: 12px; background: #0071e3; color: white; border: none; border-radius: 6px; cursor: pointer; }
         #res { margin-top: 20px; text-align: center; }
         #res img { max-width: 100%; border-radius: 8px; }
+        #status { color: #555; text-align: center; margin-top: 10px; font-size: 0.9em; }
     </style>
 </head>
 <body>
@@ -25,6 +26,7 @@
         <div id="imgSec"><textarea id="urls" placeholder="URL immagini (uno per riga)"></textarea></div>
         <div id="promptSec"><textarea id="prompt">A cinematic portrait...</textarea></div>
         <button onclick="run()">Elabora</button>
+        <div id="status"></div>
         <div id="res"></div>
     </div>
 
@@ -42,6 +44,13 @@
             document.getElementById('promptSec').style.display = m.usePrompt ? 'block' : 'none';
         }
 
+        function handleResult(url) {
+            const baseUrl = 'https://api.pruna.ai';
+            const finalUrl = url.startsWith('http') ? url : baseUrl + url;
+            document.getElementById('res').innerHTML = `<img src="${finalUrl}">`;
+            document.getElementById('status').innerText = "";
+        }
+
         async function run() {
             const mode = document.getElementById('mode').value;
             const conf = configs[mode];
@@ -52,10 +61,9 @@
                 const urls = document.getElementById('urls').value.split('\n').filter(u => u.trim());
                 payload.input[mode === 'upscale' ? 'image' : 'images'] = mode === 'upscale' ? urls[0] : urls;
             }
-            if(conf.useParams) {
-                payload.input.aspect_ratio = "1:1";
-            }
+            if(conf.useParams) payload.input.aspect_ratio = "1:1";
 
+            document.getElementById('status').innerText = "Elaborazione in corso...";
             const res = await fetch('/.netlify/functions/pruna', {
                 method: 'POST',
                 headers: { 'x-pruna-key': document.getElementById('key').value, 'x-pruna-model': conf.model, 'Content-Type': 'application/json' },
@@ -63,13 +71,15 @@
             });
             const data = await res.json();
             if(data.get_url) poll(data.get_url, document.getElementById('key').value);
-            else document.getElementById('res').innerHTML = `<img src="${data.generation_url}">`;
+            else if(data.generation_url) handleResult(data.generation_url);
+            else document.getElementById('res').innerHTML = `<p style="color:red">Errore: ${data.error || JSON.stringify(data)}</p>`;
         }
 
         async function poll(url, key) {
+            document.getElementById('status').innerText = "Attesa completamento...";
             const res = await fetch('/.netlify/functions/pruna', { method: 'POST', headers: { 'x-pruna-key': key, 'x-pruna-check-url': url }});
             const data = await res.json();
-            if(data.status === 'succeeded') document.getElementById('res').innerHTML = `<img src="${data.generation_url}">`;
+            if(data.status === 'succeeded') handleResult(data.generation_url);
             else setTimeout(() => poll(url, key), 3000);
         }
         updateUI();
