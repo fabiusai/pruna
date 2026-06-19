@@ -2,159 +2,359 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pruna AI Studio Pro</title>
     <style>
+        /* Base e Reset */
+        :root {
+            --bg-body: #f5f5f7;
+            --bg-card: #ffffff;
+            --text-main: #1d1d1f;
+            --text-muted: #86868b;
+            --accent: #0071e3;
+            --accent-hover: #005bb5;
+            --border-color: #d2d2d7;
+            --success: #34c759;
+            --error: #ff3b30;
+            --radius-lg: 16px;
+            --radius-md: 10px;
+            --shadow: 0 4px 24px rgba(0,0,0,0.06);
+        }
+
         body { 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
-            background: #f5f5f7; 
-            padding: 20px; 
-            max-width: 650px; 
-            margin: auto; 
-            color: #333;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            background: var(--bg-body); 
+            color: var(--text-main);
+            padding: 40px 20px; 
+            margin: 0;
+            display: flex;
+            justify-content: center;
         }
+
+        /* Layout Principale */
+        .app-container {
+            width: 100%;
+            max-width: 680px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+            margin: 0 0 8px 0;
+        }
+
+        .header p {
+            color: var(--text-muted);
+            font-size: 15px;
+            margin: 0;
+        }
+
         .card { 
-            background: white; 
-            padding: 25px; 
-            border-radius: 12px; 
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05); 
+            background: var(--bg-card); 
+            padding: 32px; 
+            border-radius: var(--radius-lg); 
+            box-shadow: var(--shadow); 
+            margin-bottom: 24px;
         }
-        h2 { margin-top: 0; margin-bottom: 20px; font-size: 22px; }
-        label { font-size: 13px; font-weight: 600; color: #555; display: block; margin-bottom: 5px; }
-        input, textarea, select { 
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .form-col {
+            flex: 1;
+        }
+
+        label { 
+            font-size: 13px; 
+            font-weight: 600; 
+            color: var(--text-main); 
+            display: block; 
+            margin-bottom: 8px; 
+        }
+
+        input[type="text"], 
+        input[type="password"], 
+        input[type="number"], 
+        textarea, 
+        select { 
             width: 100%; 
-            padding: 12px; 
-            margin-bottom: 15px; 
-            border: 1px solid #d2d2d7; 
-            border-radius: 8px; 
+            padding: 14px 16px; 
+            background-color: #fbfbfd;
+            border: 1px solid var(--border-color); 
+            border-radius: var(--radius-md); 
             box-sizing: border-box; 
             font-family: inherit;
+            font-size: 15px;
+            color: var(--text-main);
+            transition: all 0.2s ease;
         }
-        textarea { height: 100px; resize: vertical; white-space: pre-wrap; }
-        
-        .settings-grid {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 15px;
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.15);
+            background-color: #ffffff;
         }
-        .settings-grid > div { flex: 1; }
-        
+
+        textarea { 
+            height: 100px; 
+            resize: vertical; 
+            line-height: 1.5;
+        }
+
+        /* Helpers per UI dinamica */
+        .hidden {
+            display: none !important;
+        }
+
+        .section-divider {
+            height: 1px;
+            background: #ebebeb;
+            margin: 24px 0;
+        }
+
+        /* Bottoni */
         button { 
             width: 100%; 
-            padding: 14px; 
-            background: #0071e3; 
+            padding: 16px; 
+            background: var(--accent); 
             color: white; 
             border: none; 
-            border-radius: 8px; 
+            border-radius: var(--radius-md); 
             font-weight: 600;
-            font-size: 15px;
+            font-size: 16px;
             cursor: pointer; 
-            transition: background 0.2s;
+            transition: background 0.2s ease, transform 0.1s ease;
         }
-        button:hover { background: #005bb5; }
-        button:disabled { background: #a1c6ea; cursor: not-allowed; }
+
+        button:hover:not(:disabled) { 
+            background: var(--accent-hover); 
+        }
+
+        button:active:not(:disabled) {
+            transform: scale(0.98);
+        }
+
+        button:disabled { 
+            background: #a1c6ea; 
+            cursor: not-allowed; 
+        }
         
-        .download-btn { background: #34c759; margin-top: 15px; }
-        .download-btn:hover { background: #2da94f; }
+        .btn-success {
+            background: var(--success);
+            margin-top: 16px;
+        }
+        .btn-success:hover:not(:disabled) {
+            background: #2da94f;
+        }
+
+        /* Area Risultati */
+        #result-container {
+            text-align: center;
+        }
         
-        #res { margin-top: 25px; text-align: center; }
-        #res img, #res video { max-width: 100%; border-radius: 10px; border: 1px solid #eee; margin-bottom: 10px; }
-        #status { color: #0071e3; text-align: center; margin-top: 15px; font-weight: 500; font-size: 14px; min-height: 20px;}
-        .error-text { color: #ff3b30 !important; }
+        #result-media img, 
+        #result-media video { 
+            max-width: 100%; 
+            border-radius: var(--radius-md); 
+            border: 1px solid #ebebeb; 
+            margin-bottom: 8px; 
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        }
+
+        #status-box { 
+            text-align: center; 
+            font-weight: 500; 
+            font-size: 14px; 
+            padding: 16px;
+            border-radius: var(--radius-md);
+            margin-bottom: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .status-info { color: var(--accent); background: rgba(0, 113, 227, 0.08); }
+        .status-error { color: var(--error); background: rgba(255, 59, 48, 0.08); }
     </style>
 </head>
 <body>
-    <div class="card">
-        <h2>Pruna AI Studio Pro</h2>
-        
-        <label for="key">API Key Pruna</label>
-        <input type="password" id="key" placeholder="Incolla qui la tua chiave segreta...">
-        
-        <label for="mode">Modalità di Generazione</label>
-        <select id="mode" onchange="updateUI()">
-            <option value="generate">Text-to-Image (p-image)</option>
-            <option value="edit">Inpainting/Modifica (p-image-edit)</option>
-            <option value="upscale">Migliora Risoluzione 4x (p-image-upscale)</option>
-            <option value="lipsync">Lip-Sync Avatar (p-video-avatar)</option>
-        </select>
-        
-        <div id="imgSec">
-            <label for="urls">URL Immagine di Riferimento</label>
-            <textarea id="urls" placeholder="Inserisci l'URL dell'immagine..."></textarea>
+
+    <div class="app-container">
+        <div class="header">
+            <h1>Pruna AI Studio</h1>
+            <p>Generazione e manipolazione multimediale avanzata</p>
         </div>
 
-        <div id="audioSec" style="display:none;">
-            <label for="audioUrl">URL File Audio (Voce)</label>
-            <input type="text" id="audioUrl" placeholder="Es. https://iltuosito.com/voce.mp3">
-        </div>
-        
-        <div id="promptSec">
-            <label for="prompt">Prompt Immagine (Istruzioni di generazione)</label>
-            <textarea id="prompt" placeholder="Descrivi dettagliatamente cosa vuoi generare o come vuoi modificare l'immagine..."></textarea>
-        </div>
-
-        <div class="settings-grid">
-            <div id="aspectRatioSec">
-                <label for="aspectRatio">Aspect Ratio</label>
-                <select id="aspectRatio">
-                    <option value="1:1">1:1 (Quadrato)</option>
-                    <option value="16:9">16:9 (Orizzontale)</option>
-                    <option value="9:16">9:16 (Verticale)</option>
-                </select>
+        <div class="card">
+            <div class="form-row">
+                <div class="form-col">
+                    <label for="key">API Key Pruna</label>
+                    <input type="password" id="key" placeholder="••••••••••••••••">
+                </div>
+                <div class="form-col">
+                    <label for="mode">Modalità di Lavoro</label>
+                    <select id="mode" onchange="updateUI()">
+                        <option value="generate">Generazione Immagine (Text-to-Image)</option>
+                        <option value="edit">Fotoritocco (Inpainting)</option>
+                        <option value="upscale">Upscale 4x (Migliora Risoluzione)</option>
+                        <option value="lipsync">Lip-Sync Video (Avatar Parlante)</option>
+                    </select>
+                </div>
             </div>
-            <div id="videoResolutionSec" style="display:none;">
-                <label for="videoResolution">Risoluzione Video</label>
-                <select id="videoResolution">
-                    <option value="720p">720p (Standard)</option>
-                    <option value="1080p">1080p (Alta Qualità)</option>
-                </select>
+
+            <div class="section-divider"></div>
+
+            <div id="imgSec" class="form-group hidden">
+                <label id="imgLabel" for="urls">URL Immagine di Riferimento</label>
+                <textarea id="urls" placeholder="https://esempio.com/foto.jpg"></textarea>
             </div>
-            <div id="seedSec">
-                <label for="seed">Seed (Opzionale)</label>
-                <input type="number" id="seed" placeholder="Es. 42">
+
+            <div id="audioSec" class="form-group hidden">
+                <label for="audioUrl">URL File Audio (Voce per Lip-Sync)</label>
+                <input type="text" id="audioUrl" placeholder="https://esempio.com/voce.mp3">
             </div>
+
+            <div id="promptSec" class="form-group hidden">
+                <label for="prompt">Prompt Immagine (Istruzioni di stile e contenuto)</label>
+                <textarea id="prompt" placeholder="Un ritratto cinematografico con luce al neon..."></textarea>
+            </div>
+
+            <div id="videoPromptSec" class="form-group hidden">
+                <label for="videoPrompt">Prompt di Movimento Video (Opzionale)</label>
+                <input type="text" id="videoPrompt" placeholder="Es. The person is talking naturally, smiling gently">
+            </div>
+
+            <div id="settingsGrid" class="form-row hidden">
+                <div id="aspectRatioCol" class="form-col hidden">
+                    <label for="aspectRatio">Proporzioni</label>
+                    <select id="aspectRatio">
+                        <option value="1:1">1:1 (Quadrato)</option>
+                        <option value="16:9">16:9 (Landscape)</option>
+                        <option value="9:16">9:16 (Portrait)</option>
+                        <option value="4:3">4:3 (Classico)</option>
+                        <option value="3:2">3:2 (Fotografia)</option>
+                    </select>
+                </div>
+                
+                <div id="videoResCol" class="form-col hidden">
+                    <label for="videoResolution">Risoluzione</label>
+                    <select id="videoResolution">
+                        <option value="720p">720p (Veloce)</option>
+                        <option value="1080p">1080p (Alta Qualità)</option>
+                    </select>
+                </div>
+
+                <div id="seedCol" class="form-col hidden">
+                    <label for="seed">Seed Fisso (Opzionale)</label>
+                    <input type="number" id="seed" placeholder="Es. 42">
+                </div>
+            </div>
+
+            <button id="submitBtn" onclick="run()">Elabora Richiesta</button>
         </div>
 
-        <div id="videoPromptSec" style="display:none;">
-            <label for="videoPrompt">Prompt di Movimento (Opzionale)</label>
-            <input type="text" id="videoPrompt" placeholder="Es. The person is talking naturally...">
+        <div id="result-container" class="card hidden">
+            <div id="status-box" class="hidden"></div>
+            <div id="result-media"></div>
+            <button id="downloadBtn" class="btn-success hidden">Scarica Risultato</button>
         </div>
-
-        <button id="submitBtn" onclick="run()">Avvia Elaborazione</button>
-        <div id="status"></div>
-        <div id="res"></div>
     </div>
 
     <script>
-        // Logica modulare per attivare/disattivare i campi corretti
+        // Mappa delle logiche di interfaccia e payload per ogni modello
         const configs = {
-            generate: { model: 'p-image', usePrompt: true, useImages: false, useAspectRatio: true, useVideoSettings: false, useAudio: false, useSeed: true },
-            edit: { model: 'p-image-edit', usePrompt: true, useImages: true, useAspectRatio: true, useVideoSettings: false, useAudio: false, useSeed: true },
-            upscale: { model: 'p-image-upscale', usePrompt: false, useImages: true, useAspectRatio: false, useVideoSettings: false, useAudio: false, useSeed: false },
-            lipsync: { model: 'p-video-avatar', usePrompt: false, useImages: true, useAspectRatio: false, useVideoSettings: true, useAudio: true, useSeed: true }
+            generate: { 
+                model: 'p-image', 
+                reqImg: false, reqAudio: false, reqPrompt: true, reqVidPrompt: false, 
+                showRatio: true, showVidRes: false, showSeed: true 
+            },
+            edit: { 
+                model: 'p-image-edit', 
+                reqImg: true, reqAudio: false, reqPrompt: true, reqVidPrompt: false, 
+                showRatio: true, showVidRes: false, showSeed: true, multiImg: true 
+            },
+            upscale: { 
+                model: 'p-image-upscale', 
+                reqImg: true, reqAudio: false, reqPrompt: false, reqVidPrompt: false, 
+                showRatio: false, showVidRes: false, showSeed: false, multiImg: false 
+            },
+            lipsync: { 
+                model: 'p-video-avatar', 
+                reqImg: true, reqAudio: true, reqPrompt: false, reqVidPrompt: true, 
+                showRatio: false, showVidRes: true, showSeed: true, multiImg: false 
+            }
         };
 
+        // Funzione per mostrare/nascondere gli elementi tramite classi CSS
+        function toggleVisibility(id, show) {
+            const el = document.getElementById(id);
+            if (el) {
+                if (show) el.classList.remove('hidden');
+                else el.classList.add('hidden');
+            }
+        }
+
+        // Aggiorna la UI dinamicamente
         function updateUI() {
             const mode = document.getElementById('mode').value;
             const conf = configs[mode];
             
-            document.getElementById('imgSec').style.display = conf.useImages ? 'block' : 'none';
-            document.getElementById('promptSec').style.display = conf.usePrompt ? 'block' : 'none';
-            document.getElementById('audioSec').style.display = conf.useAudio ? 'block' : 'none';
+            // Gestione etichette specifiche
+            const imgLabel = document.getElementById('imgLabel');
+            if (conf.multiImg) imgLabel.innerText = "URL Immagini (uno per riga, per inpainting/maschere)";
+            else imgLabel.innerText = "URL Immagine Sorgente";
+
+            // Attivazione sezioni principali
+            toggleVisibility('imgSec', conf.reqImg);
+            toggleVisibility('audioSec', conf.reqAudio);
+            toggleVisibility('promptSec', conf.reqPrompt);
+            toggleVisibility('videoPromptSec', conf.reqVidPrompt);
             
-            // Impostazioni extra
-            document.getElementById('aspectRatioSec').style.display = conf.useAspectRatio ? 'block' : 'none';
-            document.getElementById('videoResolutionSec').style.display = conf.useVideoSettings ? 'block' : 'none';
-            document.getElementById('videoPromptSec').style.display = conf.useVideoSettings ? 'block' : 'none';
-            document.getElementById('seedSec').style.display = conf.useSeed ? 'block' : 'none';
+            // Attivazione griglia impostazioni
+            const hasSettings = conf.showRatio || conf.showVidRes || conf.showSeed;
+            toggleVisibility('settingsGrid', hasSettings);
+            toggleVisibility('aspectRatioCol', conf.showRatio);
+            toggleVisibility('videoResCol', conf.showVidRes);
+            toggleVisibility('seedCol', conf.showSeed);
         }
 
-        async function downloadImage(url) {
+        // Gestione Stato Interfaccia
+        function setStatus(message, type = 'info') {
+            const resultBox = document.getElementById('result-container');
+            const statusBox = document.getElementById('status-box');
+            
+            resultBox.classList.remove('hidden');
+            
+            if (message) {
+                statusBox.innerText = message;
+                statusBox.className = type === 'error' ? 'status-error' : 'status-info';
+                statusBox.classList.remove('hidden');
+            } else {
+                statusBox.classList.add('hidden');
+            }
+        }
+
+        // Motore di Download Sicuro (Bypassa policy di base salvando blob)
+        async function triggerDownload(url, filename) {
             try {
                 const response = await fetch(url);
                 const blob = await response.blob();
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(blob);
-                link.download = `pruna_studio_${Date.now()}`;
+                link.download = filename;
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
@@ -164,60 +364,135 @@
             }
         }
 
-        function handleResult(url) {
+        // Rendering a schermo dell'output
+        function renderResult(url) {
             const baseUrl = 'https://api.pruna.ai';
             const finalUrl = url.startsWith('http') ? url : baseUrl + url;
-            const mode = document.getElementById('mode').value;
+            const isVideo = finalUrl.endsWith('.mp4') || document.getElementById('mode').value === 'lipsync';
             
-            let mediaHtml = '';
-            if (mode === 'lipsync' || finalUrl.endsWith('.mp4')) {
-                mediaHtml = `
-                    <video controls autoplay>
-                        <source src="${finalUrl}" type="video/mp4">
-                        Il tuo browser non supporta la riproduzione video.
-                    </video>
-                `;
+            const mediaContainer = document.getElementById('result-media');
+            const downloadBtn = document.getElementById('downloadBtn');
+
+            if (isVideo) {
+                mediaContainer.innerHTML = `<video controls autoplay><source src="${finalUrl}" type="video/mp4"></video>`;
             } else {
-                mediaHtml = `<img src="${finalUrl}" alt="Risultato Pruna AI">`;
+                mediaContainer.innerHTML = `<img src="${finalUrl}" alt="Risultato Generato">`;
             }
             
-            document.getElementById('res').innerHTML = `
-                ${mediaHtml}
-                <button class="download-btn" onclick="downloadImage('${finalUrl}')">⬇ Scarica File</button>
-            `;
-            setStatus("", false);
-            toggleButton(false);
+            setStatus(null); // Pulisce gli avvisi di attesa
+            
+            // Configura il bottone di download
+            downloadBtn.classList.remove('hidden');
+            downloadBtn.onclick = () => triggerDownload(finalUrl, `pruna_${Date.now()}.${isVideo ? 'mp4' : 'png'}`);
+            document.getElementById('submitBtn').disabled = false;
         }
 
-        function setStatus(message, isError = false) {
-            const statusDiv = document.getElementById('status');
-            statusDiv.innerText = message;
-            statusDiv.className = isError ? 'error-text' : '';
-        }
-
-        function toggleButton(disabled) {
-            document.getElementById('submitBtn').disabled = disabled;
-        }
-
+        // Processo di invio principale
         async function run() {
             const apiKey = document.getElementById('key').value.trim();
-            if (!apiKey) {
-                setStatus("Inserisci una API Key valida.", true);
-                return;
-            }
-
-            toggleButton(true);
-            setStatus("Inizializzazione elaborazione in corso...");
-            document.getElementById('res').innerHTML = "";
+            if (!apiKey) return setStatus("⚠️ Attenzione: Inserisci la tua API Key Pruna.", 'error');
 
             const mode = document.getElementById('mode').value;
             const conf = configs[mode];
+            
+            // Reset UI pre-invio
+            document.getElementById('submitBtn').disabled = true;
+            document.getElementById('result-media').innerHTML = "";
+            document.getElementById('downloadBtn').classList.add('hidden');
+            setStatus("Inizializzazione richiesta...", 'info');
+
             const payload = { input: {} };
 
-            // Gestione Testo Base
-            if (conf.usePrompt) {
-                payload.input.prompt = document.getElementById('prompt').value;
+            // 1. Dati Testuali
+            if (conf.reqPrompt) payload.input.prompt = document.getElementById('prompt').value;
+            
+            if (conf.reqVidPrompt) {
+                const vp = document.getElementById('videoPrompt').value.trim();
+                if (vp) payload.input.video_prompt = vp;
             }
 
-            // Gestione Immagini
-            if (conf.useImages) {
+            // 2. Dati Immagini
+            if (conf.reqImg) {
+                const urls = document.getElementById('urls').value.split('\n').filter(u => u.trim() !== '');
+                if (urls.length === 0) {
+                    document.getElementById('submitBtn').disabled = false;
+                    return setStatus("⚠️ Manca l'URL dell'immagine di riferimento.", 'error');
+                }
+                if (conf.multiImg) payload.input.images = urls;
+                else payload.input.image = urls[0]; // Upscale e Lipsync vogliono la stringa singola
+            }
+
+            // 3. Dati Audio
+            if (conf.reqAudio) {
+                const audio = document.getElementById('audioUrl').value.trim();
+                if (!audio) {
+                    document.getElementById('submitBtn').disabled = false;
+                    return setStatus("⚠️ Inserisci un URL audio valido per il lip-sync.", 'error');
+                }
+                payload.input.audio = audio;
+            }
+
+            // 4. Impostazioni Avanzate
+            if (conf.showRatio) payload.input.aspect_ratio = document.getElementById('aspectRatio').value;
+            if (conf.showVidRes) payload.input.resolution = document.getElementById('videoResolution').value;
+            
+            if (conf.showSeed) {
+                const seedVal = document.getElementById('seed').value;
+                if (seedVal && !isNaN(parseInt(seedVal))) payload.input.seed = parseInt(seedVal, 10);
+            }
+
+            // Chiamata al Proxy Netlify
+            try {
+                const res = await fetch('/.netlify/functions/pruna', {
+                    method: 'POST',
+                    headers: { 
+                        'x-pruna-key': apiKey, 
+                        'x-pruna-model': conf.model, 
+                        'Content-Type': 'application/json' 
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                const data = await res.json();
+                
+                const errorMessage = data.error?.message || data.error || data.message;
+                if (errorMessage) throw new Error(errorMessage);
+                
+                if (data.get_url) poll(data.get_url, apiKey);
+                else if (data.generation_url) renderResult(data.generation_url);
+                else throw new Error("Risposta anomala dal server.");
+
+            } catch(e) { 
+                setStatus(`Errore API: ${e.message}`, 'error');
+                document.getElementById('submitBtn').disabled = false;
+            }
+        }
+
+        // Polling per i processi asincroni
+        async function poll(url, key) {
+            setStatus("Elaborazione in corso nei server Pruna... Attendi.", 'info');
+            try {
+                const res = await fetch('/.netlify/functions/pruna', { 
+                    method: 'POST', 
+                    headers: { 'x-pruna-key': key, 'x-pruna-check-url': url }
+                });
+                const data = await res.json();
+                
+                if (data.status === 'succeeded') renderResult(data.generation_url);
+                else if (data.status === 'failed') {
+                    setStatus("Elaborazione fallita lato server.", 'error');
+                    document.getElementById('submitBtn').disabled = false;
+                } else {
+                    setTimeout(() => poll(url, key), 3500); // Check ogni 3.5s
+                }
+            } catch (e) {
+                setStatus(`Errore di connessione durante l'attesa: ${e.message}`, 'error');
+                document.getElementById('submitBtn').disabled = false;
+            }
+        }
+
+        // Inizializza interfaccia al caricamento della pagina
+        window.onload = updateUI;
+    </script>
+</body>
+</html>
