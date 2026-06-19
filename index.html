@@ -1,15 +1,3 @@
-C'è stato un problema durante il copia-incolla: hai incollato il blocco di gestione degli errori *sopra* alle funzioni principali del tuo file (`downloadImage`, `handleResult`, `run` e `poll`), cancellandole del tutto e rompendo la logica del codice. Ecco perché l'interfaccia è tornata a una versione precedente e rotta.
-
-Non ti preoccupare, ho ricostruito l'intero file mettendo tutto al posto giusto. Questa versione contiene:
-
-1. Il menu a tendina con l'opzione **Lip-Sync**.
-2. Il campo di input per l'**URL Audio**.
-3. La gestione avanzata degli errori (che ti dirà esattamente qual è il problema se Pruna rifiuta il video).
-4. Il player video integrato nei risultati.
-
-### Copia e incolla questo codice per intero, sostituendo tutto il contenuto del tuo `index.html`:
-
-```html
 <!DOCTYPE html>
 <html lang="it">
 <head>
