@@ -12,7 +12,7 @@
         .download-btn { background: #34c759; margin-top: 10px; }
         #res { margin-top: 20px; text-align: center; }
         #res img { max-width: 100%; border-radius: 8px; margin-bottom: 10px; }
-        #status { color: #555; text-align: center; margin-top: 10px; }
+        #status { color: #555; text-align: center; margin-top: 10px; font-weight: 500; }
     </style>
 </head>
 <body>
@@ -20,22 +20,21 @@
         <h2>Pruna AI Studio</h2>
         <input type="password" id="key" placeholder="API Key">
         <select id="mode" onchange="updateUI()">
-            <option value="generate">Text-to-Image</option>
-            <option value="image_to_image">Image-to-Image</option>
-            <option value="edit">Inpainting (Edit)</option>
-            <option value="upscale">Upscale 4x</option>
+            <option value="generate">Text-to-Image (p-image)</option>
+            <option value="edit">Inpainting/Edit (p-image-edit)</option>
+            <option value="upscale">Upscale 4x (p-image-upscale)</option>
         </select>
-        <div id="imgSec"><textarea id="urls" placeholder="URL immagini (uno per riga)"></textarea></div>
-        <div id="promptSec"><textarea id="prompt" placeholder="Descrivi la tua immagine..."></textarea></div>
+        <div id="imgSec"><textarea id="urls" placeholder="URL immagine (es: https://.../anna.jpg)"></textarea></div>
+        <div id="promptSec"><textarea id="prompt" placeholder="Descrivi cosa vuoi generare o modificare..."></textarea></div>
         <button onclick="run()">Elabora</button>
         <div id="status"></div>
         <div id="res"></div>
     </div>
 
     <script>
+        // Mappa ufficiale basata sui modelli presenti nel tuo account
         const configs = {
             generate: { model: 'p-image', usePrompt: true, useImages: false },
-            image_to_image: { model: 'p-image-to-image', usePrompt: true, useImages: true },
             edit: { model: 'p-image-edit', usePrompt: true, useImages: true },
             upscale: { model: 'p-image-upscale', usePrompt: false, useImages: true }
         };
@@ -88,7 +87,7 @@
                 const data = await res.json();
                 if(data.get_url) poll(data.get_url, document.getElementById('key').value);
                 else if(data.generation_url) handleResult(data.generation_url);
-                else throw new Error(data.error || "Errore: il modello non ha restituito un URL");
+                else throw new Error(data.error || "Errore: Modello non disponibile o input errato");
             } catch(e) { 
                 document.getElementById('status').innerText = "";
                 document.getElementById('res').innerHTML = `<p style="color:red">Errore: ${e.message}</p>`; 
