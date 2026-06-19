@@ -31,7 +31,6 @@
         }
         textarea { height: 100px; resize: vertical; white-space: pre-wrap; }
         
-        /* Griglia per le impostazioni extra */
         .settings-grid {
             display: flex;
             gap: 15px;
@@ -58,7 +57,7 @@
         .download-btn:hover { background: #2da94f; }
         
         #res { margin-top: 25px; text-align: center; }
-        #res img { max-width: 100%; border-radius: 10px; border: 1px solid #eee; margin-bottom: 10px; }
+        #res img, #res video { max-width: 100%; border-radius: 10px; border: 1px solid #eee; margin-bottom: 10px; }
         #status { color: #0071e3; text-align: center; margin-top: 15px; font-weight: 500; font-size: 14px; min-height: 20px;}
         .error-text { color: #ff3b30 !important; }
     </style>
@@ -75,11 +74,17 @@
             <option value="generate">Text-to-Image (p-image)</option>
             <option value="edit">Inpainting/Modifica (p-image-edit)</option>
             <option value="upscale">Migliora Risoluzione 4x (p-image-upscale)</option>
+            <option value="lipsync">Lip-Sync Avatar (p-video-avatar)</option>
         </select>
         
         <div id="imgSec">
-            <label for="urls">URL Immagini di Riferimento</label>
-            <textarea id="urls" placeholder="Inserisci l'URL dell'immagine (uno per riga).&#10;Es: https://iltuosito.com/foto.jpg"></textarea>
+            <label for="urls">URL Immagine di Riferimento</label>
+            <textarea id="urls" placeholder="Inserisci l'URL dell'immagine..."></textarea>
+        </div>
+
+        <div id="audioSec" style="display:none;">
+            <label for="audioUrl">URL File Audio (Voce)</label>
+            <input type="text" id="audioUrl" placeholder="Es. https://iltuosito.com/voce.mp3">
         </div>
         
         <div id="promptSec">
@@ -102,7 +107,7 @@
             </div>
             <div>
                 <label for="seed">Seed (Opzionale)</label>
-                <input type="number" id="seed" placeholder="Es. 42 (Per risultati riproducibili)">
+                <input type="number" id="seed" placeholder="Es. 42">
             </div>
         </div>
 
@@ -112,14 +117,13 @@
     </div>
 
     <script>
-        // Mappa delle configurazioni per ciascun modello
         const configs = {
-            generate: { model: 'p-image', usePrompt: true, useImages: false, hasSettings: true },
-            edit: { model: 'p-image-edit', usePrompt: true, useImages: true, hasSettings: true },
-            upscale: { model: 'p-image-upscale', usePrompt: false, useImages: true, hasSettings: false }
+            generate: { model: 'p-image', usePrompt: true, useImages: false, hasSettings: true, useAudio: false },
+            edit: { model: 'p-image-edit', usePrompt: true, useImages: true, hasSettings: true, useAudio: false },
+            upscale: { model: 'p-image-upscale', usePrompt: false, useImages: true, hasSettings: false, useAudio: false },
+            lipsync: { model: 'p-video-avatar', usePrompt: false, useImages: true, hasSettings: false, useAudio: true }
         };
 
-        // Aggiorna l'interfaccia in base al modello selezionato
         function updateUI() {
             const mode = document.getElementById('mode').value;
             const conf = configs[mode];
@@ -127,34 +131,46 @@
             document.getElementById('imgSec').style.display = conf.useImages ? 'block' : 'none';
             document.getElementById('promptSec').style.display = conf.usePrompt ? 'block' : 'none';
             document.getElementById('settingsSec').style.display = conf.hasSettings ? 'flex' : 'none';
+            document.getElementById('audioSec').style.display = conf.useAudio ? 'block' : 'none';
         }
 
-        // Forza il download dell'immagine aggirando i blocchi CORS base
         async function downloadImage(url) {
             try {
                 const response = await fetch(url);
                 const blob = await response.blob();
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(blob);
-                link.download = `pruna_studio_${Date.now()}.png`;
+                link.download = `pruna_studio_${Date.now()}`;
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
                 URL.revokeObjectURL(link.href);
             } catch (e) {
-                // Fallback di sicurezza: se bloccato, apre l'immagine in una nuova scheda
                 window.open(url, '_blank');
             }
         }
 
-        // Mostra il risultato a schermo
         function handleResult(url) {
             const baseUrl = 'https://api.pruna.ai';
             const finalUrl = url.startsWith('http') ? url : baseUrl + url;
+            const mode = document.getElementById('mode').value;
+            
+            let mediaHtml = '';
+            // Se la modalità è lipsync o il file è un video, renderizza il player
+            if (mode === 'lipsync' || finalUrl.endsWith('.mp4')) {
+                mediaHtml = `
+                    <video controls autoplay>
+                        <source src="${finalUrl}" type="video/mp4">
+                        Il tuo browser non supporta la riproduzione video.
+                    </video>
+                `;
+            } else {
+                mediaHtml = `<img src="${finalUrl}" alt="Risultato Pruna AI">`;
+            }
             
             document.getElementById('res').innerHTML = `
-                <img src="${finalUrl}" alt="Risultato Pruna AI">
-                <button class="download-btn" onclick="downloadImage('${finalUrl}')">⬇ Scarica Immagine</button>
+                ${mediaHtml}
+                <button class="download-btn" onclick="downloadImage('${finalUrl}')">⬇ Scarica Risultato</button>
             `;
             setStatus("", false);
             toggleButton(false);
@@ -170,7 +186,6 @@
             document.getElementById('submitBtn').disabled = disabled;
         }
 
-        // Lancia la richiesta di elaborazione
         async function run() {
             const apiKey = document.getElementById('key').value.trim();
             if (!apiKey) {
@@ -186,12 +201,10 @@
             const conf = configs[mode];
             const payload = { input: {} };
 
-            // 1. Costruzione sicura del payload (Prompt)
             if (conf.usePrompt) {
                 payload.input.prompt = document.getElementById('prompt').value;
             }
 
-            // 2. Costruzione sicura del payload (Immagini)
             if (conf.useImages) {
                 const urls = document.getElementById('urls').value.split('\n').filter(u => u.trim() !== '');
                 if (urls.length === 0) {
@@ -199,11 +212,24 @@
                     toggleButton(false);
                     return;
                 }
-                // Upscale usa la chiave 'image', Edit usa 'images'
-                payload.input[mode === 'upscale' ? 'image' : 'images'] = mode === 'upscale' ? urls[0] : urls;
+                
+                if (mode === 'upscale' || mode === 'lipsync') {
+                    payload.input.image = urls[0];
+                } else {
+                    payload.input.images = urls;
+                }
             }
 
-            // 3. Costruzione sicura del payload (Impostazioni extra)
+            if (conf.useAudio) {
+                const audio = document.getElementById('audioUrl').value.trim();
+                if (!audio) {
+                    setStatus("Inserisci un URL audio valido per il lip-sync.", true);
+                    toggleButton(false);
+                    return;
+                }
+                payload.input.audio = audio;
+            }
+
             if (conf.hasSettings) {
                 const aspectRatio = document.getElementById('aspectRatio').value;
                 const seed = document.getElementById('seed').value;
@@ -234,7 +260,7 @@
                 } else if (data.generation_url) {
                     handleResult(data.generation_url);
                 } else {
-                    throw new Error("Risposta non valida dal server di Pruna.");
+                    throw new Error("Risposta non valida dal server.");
                 }
             } catch(e) { 
                 setStatus(`Errore API: ${e.message}`, true);
@@ -242,7 +268,6 @@
             }
         }
 
-        // Funzione di controllo ciclico dello stato
         async function poll(url, key) {
             setStatus("Elaborazione in corso... Attendi.");
             try {
@@ -258,7 +283,6 @@
                     setStatus("Elaborazione fallita lato server.", true);
                     toggleButton(false);
                 } else {
-                    // Ritenta dopo 3 secondi
                     setTimeout(() => poll(url, key), 3000);
                 }
             } catch (e) {
@@ -267,7 +291,6 @@
             }
         }
 
-        // Inizializza l'interfaccia all'avvio
         updateUI();
     </script>
 </body>
