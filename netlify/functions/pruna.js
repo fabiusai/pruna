@@ -8,7 +8,6 @@ exports.handler = async function(event, context) {
         return { statusCode: 401, body: JSON.stringify({ error: "API Key mancante" }) };
     }
 
-    // Se riceve un URL di check, interroga Pruna per sapere a che punto è
     const checkUrl = event.headers['x-pruna-check-url'];
     if (checkUrl) {
         try {
@@ -23,14 +22,8 @@ exports.handler = async function(event, context) {
         }
     }
 
-    // Avvia una nuova generazione
     const model = event.headers['x-pruna-model'] || 'p-image';
     try {
-        let requestBody = event.body;
-        if (event.isBase64Encoded) {
-            requestBody = Buffer.from(event.body, 'base64').toString('utf-8');
-        }
-
         const response = await fetch('https://api.pruna.ai/v1/predictions', {
             method: 'POST',
             headers: {
@@ -39,7 +32,7 @@ exports.handler = async function(event, context) {
                 'Model': model,
                 'Try-Sync': 'false' 
             },
-            body: requestBody
+            body: event.body
         });
 
         const data = await response.json();
