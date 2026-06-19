@@ -207,10 +207,16 @@
                 <div class="form-col">
                     <label for="mode">Modalità di Lavoro</label>
                     <select id="mode" onchange="updateUI()">
-                        <option value="generate">Generazione Immagine (Text-to-Image)</option>
-                        <option value="edit">Fotoritocco (Inpainting)</option>
-                        <option value="upscale">Upscale 4x (Migliora Risoluzione)</option>
-                        <option value="lipsync">Lip-Sync Video (Avatar Parlante)</option>
+                        <optgroup label="Immagini">
+                            <option value="generate">Generazione Immagine (Text-to-Image)</option>
+                            <option value="edit">Fotoritocco (Inpainting)</option>
+                            <option value="upscale">Upscale 4x (Migliora Risoluzione)</option>
+                        </optgroup>
+                        <optgroup label="Video">
+                            <option value="txt2vid">Video da Testo (p-video)</option>
+                            <option value="img2vid">Video da Immagine (p-video)</option>
+                            <option value="lipsync">Lip-Sync Video (Avatar Parlante)</option>
+                        </optgroup>
                     </select>
                 </div>
             </div>
@@ -228,7 +234,7 @@
             </div>
 
             <div id="promptSec" class="form-group hidden">
-                <label for="prompt">Prompt Immagine (Istruzioni di stile e contenuto)</label>
+                <label id="promptLabel" for="prompt">Prompt (Istruzioni di stile e contenuto)</label>
                 <textarea id="prompt" placeholder="Un ritratto cinematografico con luce al neon..."></textarea>
             </div>
 
@@ -241,8 +247,8 @@
                 <div id="aspectRatioCol" class="form-col hidden">
                     <label for="aspectRatio">Proporzioni</label>
                     <select id="aspectRatio">
-                        <option value="1:1">1:1 (Quadrato)</option>
                         <option value="16:9">16:9 (Landscape)</option>
+                        <option value="1:1">1:1 (Quadrato)</option>
                         <option value="9:16">9:16 (Portrait)</option>
                         <option value="4:3">4:3 (Classico)</option>
                         <option value="3:2">3:2 (Fotografia)</option>
@@ -279,7 +285,7 @@
             generate: { 
                 model: 'p-image', 
                 reqImg: false, reqAudio: false, reqPrompt: true, reqVidPrompt: false, 
-                showRatio: true, showVidRes: false, showSeed: true 
+                showRatio: true, showVidRes: false, showSeed: true, multiImg: false
             },
             edit: { 
                 model: 'p-image-edit', 
@@ -290,6 +296,16 @@
                 model: 'p-image-upscale', 
                 reqImg: true, reqAudio: false, reqPrompt: false, reqVidPrompt: false, 
                 showRatio: false, showVidRes: false, showSeed: false, multiImg: false 
+            },
+            txt2vid: { 
+                model: 'p-video', 
+                reqImg: false, reqAudio: false, reqPrompt: true, reqVidPrompt: false, 
+                showRatio: true, showVidRes: false, showSeed: true, multiImg: false 
+            },
+            img2vid: { 
+                model: 'p-video', 
+                reqImg: true, reqAudio: false, reqPrompt: true, reqVidPrompt: false, 
+                showRatio: true, showVidRes: false, showSeed: true, multiImg: false 
             },
             lipsync: { 
                 model: 'p-video-avatar', 
@@ -316,6 +332,10 @@
             const imgLabel = document.getElementById('imgLabel');
             if (conf.multiImg) imgLabel.innerText = "URL Immagini (uno per riga, per inpainting/maschere)";
             else imgLabel.innerText = "URL Immagine Sorgente";
+
+            const promptLabel = document.getElementById('promptLabel');
+            if (mode === 'txt2vid' || mode === 'img2vid') promptLabel.innerText = "Prompt Video (Descrivi l'animazione)";
+            else promptLabel.innerText = "Prompt Immagine (Istruzioni di stile e contenuto)";
 
             // Attivazione sezioni principali
             toggleVisibility('imgSec', conf.reqImg);
@@ -368,7 +388,8 @@
         function renderResult(url) {
             const baseUrl = 'https://api.pruna.ai';
             const finalUrl = url.startsWith('http') ? url : baseUrl + url;
-            const isVideo = finalUrl.endsWith('.mp4') || document.getElementById('mode').value === 'lipsync';
+            const mode = document.getElementById('mode').value;
+            const isVideo = finalUrl.endsWith('.mp4') || mode === 'lipsync' || mode === 'txt2vid' || mode === 'img2vid';
             
             const mediaContainer = document.getElementById('result-media');
             const downloadBtn = document.getElementById('downloadBtn');
@@ -418,8 +439,11 @@
                     document.getElementById('submitBtn').disabled = false;
                     return setStatus("⚠️ Manca l'URL dell'immagine di riferimento.", 'error');
                 }
-                if (conf.multiImg) payload.input.images = urls;
-                else payload.input.image = urls[0]; // Upscale e Lipsync vogliono la stringa singola
+                if (mode === 'upscale' || mode === 'lipsync' || mode === 'img2vid') {
+                    payload.input.image = urls[0]; // Richiedono la stringa singola
+                } else {
+                    payload.input.images = urls;
+                }
             }
 
             // 3. Dati Audio
