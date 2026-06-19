@@ -88,27 +88,35 @@
         </div>
         
         <div id="promptSec">
-            <label for="prompt">Prompt (Istruzioni di generazione)</label>
+            <label for="prompt">Prompt Immagine (Istruzioni di generazione)</label>
             <textarea id="prompt" placeholder="Descrivi dettagliatamente cosa vuoi generare o come vuoi modificare l'immagine..."></textarea>
         </div>
 
-        <div class="settings-grid" id="settingsSec">
-            <div>
-                <label for="aspectRatio">Proporzioni (Aspect Ratio)</label>
+        <div class="settings-grid">
+            <div id="aspectRatioSec">
+                <label for="aspectRatio">Aspect Ratio</label>
                 <select id="aspectRatio">
                     <option value="1:1">1:1 (Quadrato)</option>
                     <option value="16:9">16:9 (Orizzontale)</option>
                     <option value="9:16">9:16 (Verticale)</option>
-                    <option value="4:3">4:3 (Classico)</option>
-                    <option value="3:4">3:4 (Ritratto)</option>
-                    <option value="3:2">3:2 (Fotografia)</option>
-                    <option value="2:3">2:3 (Poster)</option>
                 </select>
             </div>
-            <div>
+            <div id="videoResolutionSec" style="display:none;">
+                <label for="videoResolution">Risoluzione Video</label>
+                <select id="videoResolution">
+                    <option value="720p">720p (Standard)</option>
+                    <option value="1080p">1080p (Alta Qualità)</option>
+                </select>
+            </div>
+            <div id="seedSec">
                 <label for="seed">Seed (Opzionale)</label>
                 <input type="number" id="seed" placeholder="Es. 42">
             </div>
+        </div>
+
+        <div id="videoPromptSec" style="display:none;">
+            <label for="videoPrompt">Prompt di Movimento (Opzionale)</label>
+            <input type="text" id="videoPrompt" placeholder="Es. The person is talking naturally...">
         </div>
 
         <button id="submitBtn" onclick="run()">Avvia Elaborazione</button>
@@ -117,11 +125,12 @@
     </div>
 
     <script>
+        // Logica modulare per attivare/disattivare i campi corretti
         const configs = {
-            generate: { model: 'p-image', usePrompt: true, useImages: false, hasSettings: true, useAudio: false },
-            edit: { model: 'p-image-edit', usePrompt: true, useImages: true, hasSettings: true, useAudio: false },
-            upscale: { model: 'p-image-upscale', usePrompt: false, useImages: true, hasSettings: false, useAudio: false },
-            lipsync: { model: 'p-video-avatar', usePrompt: false, useImages: true, hasSettings: false, useAudio: true }
+            generate: { model: 'p-image', usePrompt: true, useImages: false, useAspectRatio: true, useVideoSettings: false, useAudio: false, useSeed: true },
+            edit: { model: 'p-image-edit', usePrompt: true, useImages: true, useAspectRatio: true, useVideoSettings: false, useAudio: false, useSeed: true },
+            upscale: { model: 'p-image-upscale', usePrompt: false, useImages: true, useAspectRatio: false, useVideoSettings: false, useAudio: false, useSeed: false },
+            lipsync: { model: 'p-video-avatar', usePrompt: false, useImages: true, useAspectRatio: false, useVideoSettings: true, useAudio: true, useSeed: true }
         };
 
         function updateUI() {
@@ -130,8 +139,13 @@
             
             document.getElementById('imgSec').style.display = conf.useImages ? 'block' : 'none';
             document.getElementById('promptSec').style.display = conf.usePrompt ? 'block' : 'none';
-            document.getElementById('settingsSec').style.display = conf.hasSettings ? 'flex' : 'none';
             document.getElementById('audioSec').style.display = conf.useAudio ? 'block' : 'none';
+            
+            // Impostazioni extra
+            document.getElementById('aspectRatioSec').style.display = conf.useAspectRatio ? 'block' : 'none';
+            document.getElementById('videoResolutionSec').style.display = conf.useVideoSettings ? 'block' : 'none';
+            document.getElementById('videoPromptSec').style.display = conf.useVideoSettings ? 'block' : 'none';
+            document.getElementById('seedSec').style.display = conf.useSeed ? 'block' : 'none';
         }
 
         async function downloadImage(url) {
@@ -169,7 +183,7 @@
             
             document.getElementById('res').innerHTML = `
                 ${mediaHtml}
-                <button class="download-btn" onclick="downloadImage('${finalUrl}')">⬇ Scarica Risultato</button>
+                <button class="download-btn" onclick="downloadImage('${finalUrl}')">⬇ Scarica File</button>
             `;
             setStatus("", false);
             toggleButton(false);
@@ -200,101 +214,10 @@
             const conf = configs[mode];
             const payload = { input: {} };
 
+            // Gestione Testo Base
             if (conf.usePrompt) {
                 payload.input.prompt = document.getElementById('prompt').value;
             }
 
+            // Gestione Immagini
             if (conf.useImages) {
-                const urls = document.getElementById('urls').value.split('\n').filter(u => u.trim() !== '');
-                if (urls.length === 0) {
-                    setStatus("Inserisci almeno un URL di immagine per questa modalità.", true);
-                    toggleButton(false);
-                    return;
-                }
-                
-                if (mode === 'upscale' || mode === 'lipsync') {
-                    payload.input.image = urls[0];
-                } else {
-                    payload.input.images = urls;
-                }
-            }
-
-            if (conf.useAudio) {
-                const audio = document.getElementById('audioUrl').value.trim();
-                if (!audio) {
-                    setStatus("Inserisci un URL audio valido per il lip-sync.", true);
-                    toggleButton(false);
-                    return;
-                }
-                payload.input.audio = audio;
-            }
-
-            if (conf.hasSettings) {
-                const aspectRatio = document.getElementById('aspectRatio').value;
-                const seed = document.getElementById('seed').value;
-                
-                payload.input.aspect_ratio = aspectRatio;
-                if (seed && !isNaN(parseInt(seed))) {
-                    payload.input.seed = parseInt(seed, 10);
-                }
-            }
-
-            try {
-                const res = await fetch('/.netlify/functions/pruna', {
-                    method: 'POST',
-                    headers: { 
-                        'x-pruna-key': apiKey, 
-                        'x-pruna-model': conf.model, 
-                        'Content-Type': 'application/json' 
-                    },
-                    body: JSON.stringify(payload)
-                });
-                
-                const data = await res.json();
-                
-                // CATTURA TUTTI GLI ERRORI PER CAPIRE IL PROBLEMA DEL LIPSYNC
-                const errorMessage = data.error?.message || data.error || data.message;
-                if (errorMessage) throw new Error(errorMessage);
-                
-                if (data.get_url) {
-                    poll(data.get_url, apiKey);
-                } else if (data.generation_url) {
-                    handleResult(data.generation_url);
-                } else {
-                    throw new Error("Risposta imprevista: " + JSON.stringify(data));
-                }
-            } catch(e) { 
-                setStatus(`Errore: ${e.message}`, true);
-                toggleButton(false);
-            }
-        }
-
-        async function poll(url, key) {
-            setStatus("Elaborazione in corso... Attendi.");
-            try {
-                const res = await fetch('/.netlify/functions/pruna', { 
-                    method: 'POST', 
-                    headers: { 'x-pruna-key': key, 'x-pruna-check-url': url }
-                });
-                const data = await res.json();
-                
-                if (data.status === 'succeeded') {
-                    handleResult(data.generation_url);
-                } else if (data.status === 'failed') {
-                    setStatus("Elaborazione fallita lato server.", true);
-                    toggleButton(false);
-                } else {
-                    setTimeout(() => poll(url, key), 3000);
-                }
-            } catch (e) {
-                setStatus(`Errore durante il controllo dello stato: ${e.message}`, true);
-                toggleButton(false);
-            }
-        }
-
-        updateUI();
-    </script>
-</body>
-</html>
-
-```
