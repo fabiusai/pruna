@@ -4,13 +4,15 @@
     <meta charset="UTF-8">
     <title>Pruna AI Studio Pro</title>
     <style>
-        body { font-family: sans-serif; background: #f5f5f7; padding: 20px; max-width: 600px; margin: auto; }
+        body { font-family: -apple-system, sans-serif; background: #f5f5f7; padding: 20px; max-width: 600px; margin: auto; }
         .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        input, textarea, select { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; background: #0071e3; color: white; border: none; border-radius: 6px; cursor: pointer; }
+        input, textarea, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+        textarea { height: 120px; resize: vertical; white-space: pre-wrap; } /* Formattazione preservata */
+        button { width: 100%; padding: 14px; background: #0071e3; color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 10px; }
+        .download-btn { background: #34c759; margin-top: 10px; }
         #res { margin-top: 20px; text-align: center; }
-        #res img { max-width: 100%; border-radius: 8px; }
-        #status { color: #555; text-align: center; margin-top: 10px; font-size: 0.9em; }
+        #res img { max-width: 100%; border-radius: 8px; margin-bottom: 10px; }
+        #status { color: #555; text-align: center; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -24,7 +26,7 @@
             <option value="upscale">Upscale 4x</option>
         </select>
         <div id="imgSec"><textarea id="urls" placeholder="URL immagini (uno per riga)"></textarea></div>
-        <div id="promptSec"><textarea id="prompt">A cinematic portrait...</textarea></div>
+        <div id="promptSec"><textarea id="prompt" placeholder="Descrivi la tua immagine..."></textarea></div>
         <button onclick="run()">Elabora</button>
         <div id="status"></div>
         <div id="res"></div>
@@ -44,10 +46,24 @@
             document.getElementById('promptSec').style.display = m.usePrompt ? 'block' : 'none';
         }
 
+        async function downloadImage(url) {
+            const response = await fetch(url);
+            const blob = await response.blob();
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'generazione_pruna.png';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
         function handleResult(url) {
             const baseUrl = 'https://api.pruna.ai';
             const finalUrl = url.startsWith('http') ? url : baseUrl + url;
-            document.getElementById('res').innerHTML = `<img src="${finalUrl}">`;
+            document.getElementById('res').innerHTML = `
+                <img src="${finalUrl}">
+                <button class="download-btn" onclick="downloadImage('${finalUrl}')">Scarica Immagine</button>
+            `;
             document.getElementById('status').innerText = "";
         }
 
@@ -64,15 +80,17 @@
             if(conf.useParams) payload.input.aspect_ratio = "1:1";
 
             document.getElementById('status').innerText = "Elaborazione in corso...";
-            const res = await fetch('/.netlify/functions/pruna', {
-                method: 'POST',
-                headers: { 'x-pruna-key': document.getElementById('key').value, 'x-pruna-model': conf.model, 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            const data = await res.json();
-            if(data.get_url) poll(data.get_url, document.getElementById('key').value);
-            else if(data.generation_url) handleResult(data.generation_url);
-            else document.getElementById('res').innerHTML = `<p style="color:red">Errore: ${data.error || JSON.stringify(data)}</p>`;
+            try {
+                const res = await fetch('/.netlify/functions/pruna', {
+                    method: 'POST',
+                    headers: { 'x-pruna-key': document.getElementById('key').value, 'x-pruna-model': conf.model, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if(data.get_url) poll(data.get_url, document.getElementById('key').value);
+                else if(data.generation_url) handleResult(data.generation_url);
+                else throw new Error(data.error || "Errore sconosciuto");
+            } catch(e) { document.getElementById('res').innerHTML = `<p style="color:red">Errore: ${e.message}</p>`; }
         }
 
         async function poll(url, key) {
