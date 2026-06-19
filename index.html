@@ -15,7 +15,8 @@
         button { width: 100%; padding: 14px; margin-top: 25px; background: var(--accent-color); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
         #result { margin-top: 30px; text-align: center; }
         #result img { max-width: 100%; border-radius: 8px; border: 1px solid #eee; }
-        .loading-text { color: var(--accent-color); font-weight: 500; margin-top: 15px; text-align: center; }
+        .status-text { color: var(--accent-color); font-weight: 500; margin-top: 15px; text-align: center; }
+        .error { color: #ff3b30; padding: 12px; background: rgba(255, 59, 48, 0.1); border-radius: 8px; margin-top: 15px; }
     </style>
 </head>
 <body>
@@ -33,22 +34,23 @@
             <option value="upscale">Upscale 4x</option>
         </select>
 
-        <div id="imageInputSection" style="display:none;">
+        <div id="imageInputSection">
             <label>URL Immagini (uno per riga)</label>
             <textarea id="imageUrls" rows="3" placeholder="https://..."></textarea>
         </div>
 
-        <label>Prompt Descrittivo</label>
-        <textarea id="prompt" rows="3">A futuristic portrait...</textarea>
+        <div id="promptSection">
+            <label>Prompt Descrittivo</label>
+            <textarea id="prompt" rows="3">A cinematic portrait...</textarea>
+        </div>
 
-        <div class="row">
+        <div class="row" id="settingsSection">
             <div class="col">
                 <label>Aspect Ratio</label>
                 <select id="aspectRatio">
                     <option value="1:1">1:1 (Square)</option>
                     <option value="16:9">16:9 (Landscape)</option>
                     <option value="9:16">9:16 (Portrait)</option>
-                    <option value="4:3">4:3 (Classic)</option>
                 </select>
             </div>
             <div class="col">
@@ -58,15 +60,17 @@
         </div>
 
         <button onclick="runJob()">Avvia Elaborazione</button>
-        <div id="status" class="loading-text" style="display:none;"></div>
+        <div id="status" class="status-text" style="display:none;"></div>
         <div id="result"></div>
     </div>
 
     <script>
         function updateUI() {
             const mode = document.getElementById('actionSelect').value;
+            // Gestione visibilità sezioni con controllo di sicurezza
             document.getElementById('imageInputSection').style.display = (mode === 'generate') ? 'none' : 'block';
-            document.getElementById('prompt').parentElement.style.display = (mode === 'upscale') ? 'none' : 'block';
+            document.getElementById('promptSection').style.display = (mode === 'upscale') ? 'none' : 'block';
+            document.getElementById('settingsSection').style.display = (mode === 'upscale') ? 'none' : 'flex';
         }
 
         async function runJob() {
@@ -99,15 +103,16 @@
                 const data = await res.json();
                 if(data.get_url) pollStatus(data.get_url, apiKey);
                 else if(data.generation_url) showResult(data.generation_url);
-                else throw new Error("Errore API: " + JSON.stringify(data));
-            } catch(e) { statusDiv.innerHTML = "Errore: " + e.message; }
+                else throw new Error("Errore API: " + (data.error || JSON.stringify(data)));
+            } catch(e) { statusDiv.innerHTML = `<div class="error">Errore: ${e.message}</div>`; }
         }
 
         async function pollStatus(url, key) {
             const res = await fetch('/.netlify/functions/pruna', { method: 'POST', headers: {'x-pruna-key': key, 'x-pruna-check-url': url}});
             const data = await res.json();
             if(data.status === 'succeeded') showResult(data.generation_url);
-            else { document.getElementById('status').innerHTML = "Stato: " + data.status.toUpperCase(); setTimeout(() => pollStatus(url, key), 3000); }
+            else if(data.status === 'failed') document.getElementById('status').innerHTML = "Elaborazione fallita.";
+            else { document.getElementById('status').innerHTML = "Stato: " + data.status.toUpperCase() + "..."; setTimeout(() => pollStatus(url, key), 3000); }
         }
 
         function showResult(url) {
