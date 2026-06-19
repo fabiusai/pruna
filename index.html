@@ -4,104 +4,270 @@
     <meta charset="UTF-8">
     <title>Pruna AI Studio Pro</title>
     <style>
-        body { font-family: -apple-system, sans-serif; background: #f5f5f7; padding: 20px; max-width: 600px; margin: auto; }
-        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        input, textarea, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
-        textarea { height: 120px; resize: vertical; white-space: pre-wrap; }
-        button { width: 100%; padding: 14px; background: #0071e3; color: white; border: none; border-radius: 6px; cursor: pointer; }
-        .download-btn { background: #34c759; margin-top: 10px; }
-        #res { margin-top: 20px; text-align: center; }
-        #res img { max-width: 100%; border-radius: 8px; margin-bottom: 10px; }
-        #status { color: #555; text-align: center; margin-top: 10px; font-weight: 500; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            background: #f5f5f7; 
+            padding: 20px; 
+            max-width: 650px; 
+            margin: auto; 
+            color: #333;
+        }
+        .card { 
+            background: white; 
+            padding: 25px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05); 
+        }
+        h2 { margin-top: 0; margin-bottom: 20px; font-size: 22px; }
+        label { font-size: 13px; font-weight: 600; color: #555; display: block; margin-bottom: 5px; }
+        input, textarea, select { 
+            width: 100%; 
+            padding: 12px; 
+            margin-bottom: 15px; 
+            border: 1px solid #d2d2d7; 
+            border-radius: 8px; 
+            box-sizing: border-box; 
+            font-family: inherit;
+        }
+        textarea { height: 100px; resize: vertical; white-space: pre-wrap; }
+        
+        /* Griglia per le impostazioni extra */
+        .settings-grid {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .settings-grid > div { flex: 1; }
+        
+        button { 
+            width: 100%; 
+            padding: 14px; 
+            background: #0071e3; 
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            font-weight: 600;
+            font-size: 15px;
+            cursor: pointer; 
+            transition: background 0.2s;
+        }
+        button:hover { background: #005bb5; }
+        button:disabled { background: #a1c6ea; cursor: not-allowed; }
+        
+        .download-btn { background: #34c759; margin-top: 15px; }
+        .download-btn:hover { background: #2da94f; }
+        
+        #res { margin-top: 25px; text-align: center; }
+        #res img { max-width: 100%; border-radius: 10px; border: 1px solid #eee; margin-bottom: 10px; }
+        #status { color: #0071e3; text-align: center; margin-top: 15px; font-weight: 500; font-size: 14px; min-height: 20px;}
+        .error-text { color: #ff3b30 !important; }
     </style>
 </head>
 <body>
     <div class="card">
-        <h2>Pruna AI Studio</h2>
-        <input type="password" id="key" placeholder="API Key">
+        <h2>Pruna AI Studio Pro</h2>
+        
+        <label for="key">API Key Pruna</label>
+        <input type="password" id="key" placeholder="Incolla qui la tua chiave segreta...">
+        
+        <label for="mode">Modalità di Generazione</label>
         <select id="mode" onchange="updateUI()">
             <option value="generate">Text-to-Image (p-image)</option>
-            <option value="edit">Inpainting/Edit (p-image-edit)</option>
-            <option value="upscale">Upscale 4x (p-image-upscale)</option>
+            <option value="edit">Inpainting/Modifica (p-image-edit)</option>
+            <option value="upscale">Migliora Risoluzione 4x (p-image-upscale)</option>
         </select>
-        <div id="imgSec"><textarea id="urls" placeholder="URL immagine (es: https://.../anna.jpg)"></textarea></div>
-        <div id="promptSec"><textarea id="prompt" placeholder="Descrivi cosa vuoi generare o modificare..."></textarea></div>
-        <button onclick="run()">Elabora</button>
+        
+        <div id="imgSec">
+            <label for="urls">URL Immagini di Riferimento</label>
+            <textarea id="urls" placeholder="Inserisci l'URL dell'immagine (uno per riga).&#10;Es: https://iltuosito.com/foto.jpg"></textarea>
+        </div>
+        
+        <div id="promptSec">
+            <label for="prompt">Prompt (Istruzioni di generazione)</label>
+            <textarea id="prompt" placeholder="Descrivi dettagliatamente cosa vuoi generare o come vuoi modificare l'immagine..."></textarea>
+        </div>
+
+        <div class="settings-grid" id="settingsSec">
+            <div>
+                <label for="aspectRatio">Proporzioni (Aspect Ratio)</label>
+                <select id="aspectRatio">
+                    <option value="1:1">1:1 (Quadrato)</option>
+                    <option value="16:9">16:9 (Orizzontale)</option>
+                    <option value="9:16">9:16 (Verticale)</option>
+                    <option value="4:3">4:3 (Classico)</option>
+                    <option value="3:4">3:4 (Ritratto)</option>
+                    <option value="3:2">3:2 (Fotografia)</option>
+                    <option value="2:3">2:3 (Poster)</option>
+                </select>
+            </div>
+            <div>
+                <label for="seed">Seed (Opzionale)</label>
+                <input type="number" id="seed" placeholder="Es. 42 (Per risultati riproducibili)">
+            </div>
+        </div>
+
+        <button id="submitBtn" onclick="run()">Avvia Elaborazione</button>
         <div id="status"></div>
         <div id="res"></div>
     </div>
 
     <script>
-        // Mappa ufficiale basata sui modelli presenti nel tuo account
+        // Mappa delle configurazioni per ciascun modello
         const configs = {
-            generate: { model: 'p-image', usePrompt: true, useImages: false },
-            edit: { model: 'p-image-edit', usePrompt: true, useImages: true },
-            upscale: { model: 'p-image-upscale', usePrompt: false, useImages: true }
+            generate: { model: 'p-image', usePrompt: true, useImages: false, hasSettings: true },
+            edit: { model: 'p-image-edit', usePrompt: true, useImages: true, hasSettings: true },
+            upscale: { model: 'p-image-upscale', usePrompt: false, useImages: true, hasSettings: false }
         };
 
+        // Aggiorna l'interfaccia in base al modello selezionato
         function updateUI() {
-            const m = configs[document.getElementById('mode').value];
-            document.getElementById('imgSec').style.display = m.useImages ? 'block' : 'none';
-            document.getElementById('promptSec').style.display = m.usePrompt ? 'block' : 'none';
+            const mode = document.getElementById('mode').value;
+            const conf = configs[mode];
+            
+            document.getElementById('imgSec').style.display = conf.useImages ? 'block' : 'none';
+            document.getElementById('promptSec').style.display = conf.usePrompt ? 'block' : 'none';
+            document.getElementById('settingsSec').style.display = conf.hasSettings ? 'flex' : 'none';
         }
 
+        // Forza il download dell'immagine aggirando i blocchi CORS base
         async function downloadImage(url) {
-            const response = await fetch(url);
-            const blob = await response.blob();
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = 'generazione_pruna.png';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            try {
+                const response = await fetch(url);
+                const blob = await response.blob();
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `pruna_studio_${Date.now()}.png`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+            } catch (e) {
+                // Fallback di sicurezza: se bloccato, apre l'immagine in una nuova scheda
+                window.open(url, '_blank');
+            }
         }
 
+        // Mostra il risultato a schermo
         function handleResult(url) {
             const baseUrl = 'https://api.pruna.ai';
             const finalUrl = url.startsWith('http') ? url : baseUrl + url;
+            
             document.getElementById('res').innerHTML = `
-                <img src="${finalUrl}">
-                <button class="download-btn" onclick="downloadImage('${finalUrl}')">Scarica Immagine</button>
+                <img src="${finalUrl}" alt="Risultato Pruna AI">
+                <button class="download-btn" onclick="downloadImage('${finalUrl}')">⬇ Scarica Immagine</button>
             `;
-            document.getElementById('status').innerText = "";
+            setStatus("", false);
+            toggleButton(false);
         }
 
+        function setStatus(message, isError = false) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerText = message;
+            statusDiv.className = isError ? 'error-text' : '';
+        }
+
+        function toggleButton(disabled) {
+            document.getElementById('submitBtn').disabled = disabled;
+        }
+
+        // Lancia la richiesta di elaborazione
         async function run() {
+            const apiKey = document.getElementById('key').value.trim();
+            if (!apiKey) {
+                setStatus("Inserisci una API Key valida.", true);
+                return;
+            }
+
+            toggleButton(true);
+            setStatus("Inizializzazione elaborazione in corso...");
+            document.getElementById('res').innerHTML = "";
+
             const mode = document.getElementById('mode').value;
             const conf = configs[mode];
             const payload = { input: {} };
 
-            if(conf.usePrompt) payload.input.prompt = document.getElementById('prompt').value;
-            if(conf.useImages) {
-                const urls = document.getElementById('urls').value.split('\n').filter(u => u.trim());
+            // 1. Costruzione sicura del payload (Prompt)
+            if (conf.usePrompt) {
+                payload.input.prompt = document.getElementById('prompt').value;
+            }
+
+            // 2. Costruzione sicura del payload (Immagini)
+            if (conf.useImages) {
+                const urls = document.getElementById('urls').value.split('\n').filter(u => u.trim() !== '');
+                if (urls.length === 0) {
+                    setStatus("Inserisci almeno un URL di immagine per questa modalità.", true);
+                    toggleButton(false);
+                    return;
+                }
+                // Upscale usa la chiave 'image', Edit usa 'images'
                 payload.input[mode === 'upscale' ? 'image' : 'images'] = mode === 'upscale' ? urls[0] : urls;
             }
 
-            document.getElementById('status').innerText = "Elaborazione in corso...";
+            // 3. Costruzione sicura del payload (Impostazioni extra)
+            if (conf.hasSettings) {
+                const aspectRatio = document.getElementById('aspectRatio').value;
+                const seed = document.getElementById('seed').value;
+                
+                payload.input.aspect_ratio = aspectRatio;
+                if (seed && !isNaN(parseInt(seed))) {
+                    payload.input.seed = parseInt(seed, 10);
+                }
+            }
+
             try {
                 const res = await fetch('/.netlify/functions/pruna', {
                     method: 'POST',
-                    headers: { 'x-pruna-key': document.getElementById('key').value, 'x-pruna-model': conf.model, 'Content-Type': 'application/json' },
+                    headers: { 
+                        'x-pruna-key': apiKey, 
+                        'x-pruna-model': conf.model, 
+                        'Content-Type': 'application/json' 
+                    },
                     body: JSON.stringify(payload)
                 });
+                
                 const data = await res.json();
-                if(data.get_url) poll(data.get_url, document.getElementById('key').value);
-                else if(data.generation_url) handleResult(data.generation_url);
-                else throw new Error(data.error || "Errore: Modello non disponibile o input errato");
+                
+                if (data.error) throw new Error(data.error.message || data.error);
+                
+                if (data.get_url) {
+                    poll(data.get_url, apiKey);
+                } else if (data.generation_url) {
+                    handleResult(data.generation_url);
+                } else {
+                    throw new Error("Risposta non valida dal server di Pruna.");
+                }
             } catch(e) { 
-                document.getElementById('status').innerText = "";
-                document.getElementById('res').innerHTML = `<p style="color:red">Errore: ${e.message}</p>`; 
+                setStatus(`Errore API: ${e.message}`, true);
+                toggleButton(false);
             }
         }
 
+        // Funzione di controllo ciclico dello stato
         async function poll(url, key) {
-            document.getElementById('status').innerText = "Attesa completamento...";
-            const res = await fetch('/.netlify/functions/pruna', { method: 'POST', headers: { 'x-pruna-key': key, 'x-pruna-check-url': url }});
-            const data = await res.json();
-            if(data.status === 'succeeded') handleResult(data.generation_url);
-            else if(data.status === 'failed') document.getElementById('status').innerText = "Elaborazione fallita.";
-            else setTimeout(() => poll(url, key), 3000);
+            setStatus("Elaborazione in corso... Attendi.");
+            try {
+                const res = await fetch('/.netlify/functions/pruna', { 
+                    method: 'POST', 
+                    headers: { 'x-pruna-key': key, 'x-pruna-check-url': url }
+                });
+                const data = await res.json();
+                
+                if (data.status === 'succeeded') {
+                    handleResult(data.generation_url);
+                } else if (data.status === 'failed') {
+                    setStatus("Elaborazione fallita lato server.", true);
+                    toggleButton(false);
+                } else {
+                    // Ritenta dopo 3 secondi
+                    setTimeout(() => poll(url, key), 3000);
+                }
+            } catch (e) {
+                setStatus(`Errore durante il controllo dello stato: ${e.message}`, true);
+                toggleButton(false);
+            }
         }
+
+        // Inizializza l'interfaccia all'avvio
         updateUI();
     </script>
 </body>
