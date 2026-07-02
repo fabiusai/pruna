@@ -1,39 +1,3 @@
-L'email di aggiornamento presenta novità molto interessanti che si integrano perfettamente nell'architettura a singola pagina (HTML/JS) che abbiamo costruito.
-
-### Analisi degli Upgrade (Email Pruna)
-
-Dal materiale inviato emergono tre nuove funzionalità chiave e un potenziamento:
-
-1. **P-Image-Try-On (Camerino Virtuale):** Un nuovo modello che permette di combinare una foto di una persona con una o più foto di capi d'abbigliamento (fino a 11), mantenendo inalterata la posa e la struttura fisica.
-
-
-2. **P-Video-Animate:** Trasforma un video esistente applicandovi lo stile visivo e il "look" prelevato da un'immagine di riferimento, mantenendo inalterati i movimenti di camera e il tempismo originali.
-
-
-3. **P-Video-Replace:** Sostituisce i personaggi all'interno di un video sorgente con quelli forniti tramite una o più immagini, mantenendo sempre l'azione originale.
-
-
-4. **P-Image-Upscale:** Il modello esistente è stato potenziato per supportare output fino a 128 MP senza rallentamenti. Poiché usiamo già l'endpoint standard, l'app beneficerà di questo potenziamento automaticamente.
-
-
-
-### Migliorie UI/UX (User Interface & Experience)
-
-Per accogliere questi nuovi modelli (che richiedono l'inserimento di URL video) senza appesantire visivamente l'interfaccia, ho riprogettato l'esperienza d'uso seguendo questi principi:
-
-* **Pannello "Impostazioni Avanzate" a comparsa (`<details>`):** Tutti i parametri tecnici (Aspect Ratio, Risoluzione, Durata, Seed) sono stati raggruppati in un menu a tendina espandibile. Questo rende l'interfaccia molto più pulita ("friendly") al primo impatto, lasciando all'utente la scelta di esplorare i dettagli solo se necessario.
-* **Etichette Dinamiche Intelligenti:** A seconda del modello scelto, il campo per l'URL dell'immagine cambia il suo testo di aiuto. Ad esempio, per il *Try-On* ti suggerirà di inserire prima la foto della persona e poi quella del vestito; per il *Video Replace* ti chiederà la foto del personaggio sostitutivo.
-* **Nuovo Campo Video:** È stato introdotto un campo dedicato all'URL dei video sorgente, che appare automaticamente e solo quando selezioni `P-Video-Animate` o `P-Video-Replace`.
-
----
-
-### Il Codice Aggiornato (`index.html`)
-
-Il file proxy backend (`netlify/functions/pruna.js`) [source: 6] non necessita di alcuna modifica, poiché è già strutturato per inoltrare dinamicamente qualsiasi modello e payload gli venga passato.
-
-Sostituisci integralmente il tuo file `index.html` [source: 4] con questa nuova versione ottimizzata:
-
-```html
 <!DOCTYPE html>
 <html lang="it">
 <head>
