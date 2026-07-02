@@ -68,6 +68,21 @@
         .hidden { display: none !important; }
         .section-divider { height: 1px; background: #ebebeb; margin: 24px 0; }
 
+        /* Box Istruzioni Dinamiche */
+        .guide-box {
+            background-color: #f0f7ff;
+            border-left: 4px solid var(--accent);
+            padding: 14px 18px;
+            border-radius: 4px var(--radius-md) var(--radius-md) 4px;
+            font-size: 13.5px;
+            color: #333;
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+        .guide-box strong { color: var(--accent); font-weight: 600; }
+        .guide-box ul { margin: 8px 0 0 0; padding-left: 20px; }
+        .guide-box li { margin-bottom: 4px; }
+
         /* Stile Accordion Impostazioni Avanzate */
         details {
             background: #fbfbfd;
@@ -147,6 +162,9 @@
                 </div>
             </div>
 
+            <!-- Box Dinamico Istruzioni -->
+            <div id="guideBox" class="guide-box hidden"></div>
+
             <div class="section-divider"></div>
 
             <!-- Input Multimediali -->
@@ -173,7 +191,7 @@
 
             <div id="videoPromptSec" class="form-group hidden">
                 <label for="videoPrompt">Prompt di Movimento Video (Opzionale)</label>
-                <input type="text" id="videoPrompt" placeholder="Es. The person is walking naturally">
+                <input type="text" id="videoPrompt" placeholder="Es. The person is talking naturally, smiling gently">
             </div>
 
             <!-- Impostazioni Avanzate (Raggruppate) -->
@@ -226,52 +244,61 @@
     </div>
 
     <script>
-        // Mappa delle logiche di interfaccia per la vasta suite di modelli
+        // Mappa delle logiche di interfaccia e istruzioni guida per i modelli
         const configs = {
             generate: { 
                 model: 'p-image', reqImg: false, reqVideo: false, reqAudio: false, reqPrompt: true, reqVidPrompt: false, 
                 showRatio: true, showVidRes: false, showDuration: false, showSeed: true, multiImg: false,
-                imgLabelText: ""
+                imgLabelText: "",
+                guideHtml: "<strong>💡 Guida Text-to-Image:</strong><br>Descrivi in inglese la scena che vuoi generare. Nelle impostazioni avanzate puoi scegliere le proporzioni (es. 16:9 per paesaggi, 9:16 per ritratti verticali)."
             },
             edit: { 
                 model: 'p-image-edit', reqImg: true, reqVideo: false, reqAudio: false, reqPrompt: true, reqVidPrompt: false, 
                 showRatio: true, showVidRes: false, showDuration: false, showSeed: true, multiImg: true,
-                imgLabelText: "URL Immagini (Originale + Maschera opzionale)"
+                imgLabelText: "URL Immagini (Originale + Maschera opzionale)",
+                guideHtml: "<strong>💡 Guida Fotoritocco:</strong><ul><li><strong>Riga 1:</strong> Inserisci l'URL dell'immagine da modificare.</li><li><strong>Riga 2 (Opzionale):</strong> Inserisci l'URL di un'immagine maschera in bianco e nero, dove il bianco indica la parte esatta da alterare.</li></ul>"
             },
             upscale: { 
                 model: 'p-image-upscale', reqImg: true, reqVideo: false, reqAudio: false, reqPrompt: false, reqVidPrompt: false, 
                 showRatio: false, showVidRes: false, showDuration: false, showSeed: false, multiImg: false,
-                imgLabelText: "URL Immagine da Migliorare (Max 128MP)"
+                imgLabelText: "URL Immagine da Migliorare (Max 128MP)",
+                guideHtml: "<strong>💡 Guida Upscale:</strong><br>Inserisci l'URL dell'immagine originale. Il modello la ingrandirà e ne migliorerà i dettagli fino a 128MP in pochissimi secondi. Nessun prompt necessario."
             },
             tryon: {
                 model: 'p-image-try-on', reqImg: true, reqVideo: false, reqAudio: false, reqPrompt: false, reqVidPrompt: false,
                 showRatio: false, showVidRes: false, showDuration: false, showSeed: true, multiImg: true,
-                imgLabelText: "URL Immagini (Riga 1: Persona, Riga 2+: Capi d'abbigliamento)"
+                imgLabelText: "URL Immagini (Riga 1: Persona, Riga 2+: Capi d'abbigliamento)",
+                guideHtml: "<strong>💡 Guida Camerino Virtuale:</strong><ul><li><strong>Riga 1:</strong> URL foto della persona.</li><li><strong>Righe successive:</strong> URL dei capi di abbigliamento (fino a 11). Vanno bene sia foto su manichino che piatte.</li></ul>Il sistema manterrà la posa originale della persona."
             },
             txt2vid: { 
                 model: 'p-video', reqImg: false, reqVideo: false, reqAudio: false, reqPrompt: true, reqVidPrompt: false, 
                 showRatio: true, showVidRes: true, showDuration: true, showSeed: true, multiImg: false,
-                imgLabelText: ""
+                imgLabelText: "",
+                guideHtml: "<strong>💡 Guida Video da Testo:</strong><br>Usa il prompt per descrivere l'animazione, l'inquadratura e lo stile. Ricorda di selezionare durata e risoluzione nelle impostazioni avanzate."
             },
             img2vid: { 
                 model: 'p-video', reqImg: true, reqVideo: false, reqAudio: false, reqPrompt: true, reqVidPrompt: false, 
                 showRatio: false, showVidRes: true, showDuration: true, showSeed: true, multiImg: false,
-                imgLabelText: "URL Immagine Base da Animare"
+                imgLabelText: "URL Immagine Base da Animare",
+                guideHtml: "<strong>💡 Guida Video da Immagine:</strong><br>Inserisci la foto di partenza. Il video generato <strong>erediterà automaticamente le proporzioni di questa foto</strong>. Usa il prompt per specificare come la fotocamera o i soggetti dovrebbero muoversi."
             },
             vid_animate: {
                 model: 'p-video-animate', reqImg: true, reqVideo: true, reqAudio: false, reqPrompt: false, reqVidPrompt: true,
                 showRatio: false, showVidRes: true, showDuration: false, showSeed: true, multiImg: false,
-                imgLabelText: "URL Immagine (Stile visivo da applicare al video)"
+                imgLabelText: "URL Immagine (Stile visivo da applicare al video)",
+                guideHtml: "<strong>💡 Guida Style Transfer:</strong><br>Inserisci un video sorgente e un'immagine che contiene lo stile visivo (es. un quadro, un render). Il risultato finale manterrà gli stessi movimenti del video originale, ma con il look dell'immagine."
             },
             vid_replace: {
                 model: 'p-video-replace', reqImg: true, reqVideo: true, reqAudio: false, reqPrompt: false, reqVidPrompt: false,
                 showRatio: false, showVidRes: true, showDuration: false, showSeed: true, multiImg: true,
-                imgLabelText: "URL Immagini (Personaggi sostitutivi, uno per riga)"
+                imgLabelText: "URL Immagini (Personaggi sostitutivi, uno per riga)",
+                guideHtml: "<strong>💡 Guida Sostituzione Personaggio:</strong><br>Inserisci il video di partenza. Nell'area immagini, inserisci gli URL delle foto delle persone che andranno a rimpiazzare i soggetti nel video. Movimento di camera e azioni resteranno inalterati."
             },
             lipsync: { 
                 model: 'p-video-avatar', reqImg: true, reqVideo: false, reqAudio: true, reqPrompt: false, reqVidPrompt: true, 
                 showRatio: false, showVidRes: true, showDuration: false, showSeed: true, multiImg: false,
-                imgLabelText: "URL Foto dell'Avatar (Volto chiaro e visibile)"
+                imgLabelText: "URL Foto dell'Avatar (Volto chiaro e visibile)",
+                guideHtml: "<strong>💡 Guida Lip-Sync:</strong><ul><li>Fornisci la foto di un volto (non video) e una traccia audio (es. .mp3).</li><li>Il video finale durerà quanto la traccia audio.</li><li>Usa il Prompt di Movimento opzionale per influenzare le espressioni corporee (es. <em>smiling and nodding</em>).</li></ul>"
             }
         };
 
@@ -287,6 +314,11 @@
             const mode = document.getElementById('mode').value;
             const conf = configs[mode];
             
+            // Box Istruzioni
+            const guideBox = document.getElementById('guideBox');
+            guideBox.innerHTML = conf.guideHtml;
+            guideBox.classList.remove('hidden');
+
             // Gestione Etichette Dinamiche
             const imgLabel = document.getElementById('imgLabel');
             if (conf.reqImg) imgLabel.innerText = conf.imgLabelText;
@@ -302,7 +334,7 @@
             toggleVisibility('promptSec', conf.reqPrompt);
             toggleVisibility('videoPromptSec', conf.reqVidPrompt);
             
-            // Visibilità Impostazioni Avanzate (Nasconde il box intero se nessuna è attiva)
+            // Visibilità Impostazioni Avanzate
             const hasSettings = conf.showRatio || conf.showVidRes || conf.showSeed || conf.showDuration;
             toggleVisibility('advancedSettingsBox', hasSettings);
             
@@ -392,7 +424,7 @@
                     document.getElementById('submitBtn').disabled = false;
                     return setStatus("⚠️ Manca l'URL del video di riferimento.", 'error');
                 }
-                payload.input.video = vidUrl; // Chiave standard per input video
+                payload.input.video = vidUrl;
             }
 
             // 3. Image Data
@@ -478,5 +510,3 @@
     </script>
 </body>
 </html>
-
-```
