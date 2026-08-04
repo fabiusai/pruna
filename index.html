@@ -238,6 +238,7 @@
                     <select id="mode" onchange="updateUI()">
                         <optgroup label="Immagini & Moda">
                             <option value="generate">🎨 Generazione (Text-to-Image)</option>
+                            <option value="ideogram">🔤 Testo & Grafica (P-Image-Ideogram)</option>
                             <option value="edit">🖌️ Fotoritocco (Inpainting)</option>
                             <option value="upscale">✨ Upscale Ultra 128MP</option>
                             <option value="tryon">👕 Camerino Virtuale (Try-On)</option>
@@ -298,6 +299,16 @@
                             <option value="4:3">4:3 (Classico)</option>
                         </select>
                     </div>
+
+                    <div id="ideogramQualityCol" class="form-col hidden">
+                        <label for="ideogramQuality">Qualità Ideogram</label>
+                        <select id="ideogramQuality">
+                            <option value="very_low">Very Low (0.4s - Ultra Economico)</option>
+                            <option value="low">Low</option>
+                            <option value="medium" selected>Medium (Standard)</option>
+                            <option value="high">High (2K Alta Definizione)</option>
+                        </select>
+                    </div>
                     
                     <div id="videoResCol" class="form-col hidden">
                         <label for="videoResolution">Risoluzione</label>
@@ -339,55 +350,61 @@
         const configs = {
             generate: { 
                 model: 'p-image', reqImg: false, reqVideo: false, reqAudio: false, reqPrompt: true, reqVidPrompt: false, 
-                showRatio: true, showVidRes: false, showDuration: false, showSeed: true, multiImg: false,
+                showRatio: true, showVidRes: false, showDuration: false, showSeed: true, showQuality: false, multiImg: false,
                 imgLabelText: "",
                 guideHtml: "<strong>💡 Guida Text-to-Image:</strong><br>Descrivi in inglese la scena che vuoi generare. Nei parametri avanzati puoi scegliere le proporzioni (es. 16:9 per paesaggi, 9:16 per ritratti verticali)."
             },
+            ideogram: { 
+                model: 'p-image-ideogram', reqImg: false, reqVideo: false, reqAudio: false, reqPrompt: true, reqVidPrompt: false, 
+                showRatio: true, showVidRes: false, showDuration: false, showSeed: true, showQuality: true, multiImg: false,
+                imgLabelText: "",
+                guideHtml: "<strong>💡 Guida P-Image-Ideogram:</strong><br>Modello ideale per <strong>testi precisi, insegne, titoli e grafica</strong> all'interno dell'immagine. Nei parametri avanzati puoi scegliere il livello di Qualità/Velocità (da Very Low a High)."
+            },
             edit: { 
                 model: 'p-image-edit', reqImg: true, reqVideo: false, reqAudio: false, reqPrompt: true, reqVidPrompt: false, 
-                showRatio: true, showVidRes: false, showDuration: false, showSeed: true, multiImg: true,
+                showRatio: true, showVidRes: false, showDuration: false, showSeed: true, showQuality: false, multiImg: true,
                 imgLabelText: "URL Immagini (Originale + Maschera opzionale)",
                 guideHtml: "<strong>💡 Guida Fotoritocco:</strong><ul><li><strong>Riga 1:</strong> Inserisci l'URL dell'immagine da modificare.</li><li><strong>Riga 2 (Opzionale):</strong> Inserisci l'URL di un'immagine maschera in bianco e nero, dove il bianco indica la parte esatta da alterare.</li></ul>"
             },
             upscale: { 
                 model: 'p-image-upscale', reqImg: true, reqVideo: false, reqAudio: false, reqPrompt: false, reqVidPrompt: false, 
-                showRatio: false, showVidRes: false, showDuration: false, showSeed: false, multiImg: false,
+                showRatio: false, showVidRes: false, showDuration: false, showSeed: false, showQuality: false, multiImg: false,
                 imgLabelText: "URL Immagine da Migliorare (Max 128MP)",
                 guideHtml: "<strong>💡 Guida Upscale:</strong><br>Inserisci l'URL dell'immagine originale. Il modello la ingrandirà e ne migliorerà i dettagli fino a 128MP. Nessun prompt necessario."
             },
             tryon: {
                 model: 'p-image-try-on', reqImg: true, reqVideo: false, reqAudio: false, reqPrompt: false, reqVidPrompt: false,
-                showRatio: false, showVidRes: false, showDuration: false, showSeed: true, multiImg: true,
+                showRatio: false, showVidRes: false, showDuration: false, showSeed: true, showQuality: false, multiImg: true,
                 imgLabelText: "URL Immagini (Riga 1: Persona, Riga 2+: Capi d'abbigliamento)",
                 guideHtml: "<strong>💡 Guida Camerino Virtuale:</strong><ul><li><strong>Riga 1:</strong> URL foto della persona.</li><li><strong>Righe successive:</strong> URL dei capi di abbigliamento (fino a 11). Vanno bene sia foto su manichino che piatte.</li></ul>Il sistema manterrà la posa originale della persona."
             },
             txt2vid: { 
                 model: 'p-video', reqImg: false, reqVideo: false, reqAudio: false, reqPrompt: true, reqVidPrompt: false, 
-                showRatio: true, showVidRes: true, showDuration: true, showSeed: true, multiImg: false,
+                showRatio: true, showVidRes: true, showDuration: true, showSeed: true, showQuality: false, multiImg: false,
                 imgLabelText: "",
                 guideHtml: "<strong>💡 Guida Video da Testo:</strong><br>Usa il prompt per descrivere l'animazione, l'inquadratura e lo stile. Ricorda di selezionare durata e risoluzione nei parametri avanzati."
             },
             img2vid: { 
                 model: 'p-video', reqImg: true, reqVideo: false, reqAudio: false, reqPrompt: true, reqVidPrompt: false, 
-                showRatio: false, showVidRes: true, showDuration: true, showSeed: true, multiImg: false,
+                showRatio: false, showVidRes: true, showDuration: true, showSeed: true, showQuality: false, multiImg: false,
                 imgLabelText: "URL Immagine Base da Animare",
                 guideHtml: "<strong>💡 Guida Video da Immagine:</strong><br>Inserisci la foto di partenza. Il video generato <strong>erediterà automaticamente le proporzioni di questa foto</strong>. Usa il prompt per specificare l'animazione."
             },
             vid_animate: {
                 model: 'p-video-animate', reqImg: true, reqVideo: true, reqAudio: false, reqPrompt: false, reqVidPrompt: true,
-                showRatio: false, showVidRes: true, showDuration: false, showSeed: true, multiImg: false,
+                showRatio: false, showVidRes: true, showDuration: false, showSeed: true, showQuality: false, multiImg: false,
                 imgLabelText: "URL Immagine (Stile visivo da applicare al video)",
                 guideHtml: "<strong>💡 Guida Style Transfer:</strong><br>Inserisci un video sorgente e un'immagine che contiene lo stile visivo (es. un quadro, un render). Il risultato finale manterrà gli stessi movimenti del video originale, con il look dell'immagine."
             },
             vid_replace: {
                 model: 'p-video-replace', reqImg: true, reqVideo: true, reqAudio: false, reqPrompt: false, reqVidPrompt: false,
-                showRatio: false, showVidRes: true, showDuration: false, showSeed: true, multiImg: true,
+                showRatio: false, showVidRes: true, showDuration: false, showSeed: true, showQuality: false, multiImg: true,
                 imgLabelText: "URL Immagini (Personaggi sostitutivi, uno per riga)",
                 guideHtml: "<strong>💡 Guida Sostituzione Personaggio:</strong><br>Inserisci il video di partenza. Nell'area immagini, inserisci gli URL delle foto delle persone che andranno a rimpiazzare i soggetti nel video. Movimento di camera e azioni resteranno inalterati."
             },
             lipsync: { 
                 model: 'p-video-avatar', reqImg: true, reqVideo: false, reqAudio: true, reqPrompt: false, reqVidPrompt: true, 
-                showRatio: false, showVidRes: true, showDuration: false, showSeed: true, multiImg: false,
+                showRatio: false, showVidRes: true, showDuration: false, showSeed: true, showQuality: false, multiImg: false,
                 imgLabelText: "URL Foto dell'Avatar (Volto chiaro e frontale)",
                 guideHtml: "<strong>💡 Guida Lip-Sync:</strong><ul><li>Fornisci la foto di un volto e una traccia audio.</li><li>Il video finale durerà quanto la traccia audio.</li><li>Usa il Prompt di Movimento opzionale per influenzare le espressioni corporee (es. <em>smiling and nodding</em>).</li></ul>"
             }
@@ -426,10 +443,11 @@
             toggleVisibility('videoPromptSec', conf.reqVidPrompt);
             
             // Visibilità Impostazioni Avanzate
-            const hasSettings = conf.showRatio || conf.showVidRes || conf.showSeed || conf.showDuration;
+            const hasSettings = conf.showRatio || conf.showVidRes || conf.showSeed || conf.showDuration || conf.showQuality;
             toggleVisibility('advancedSettingsBox', hasSettings);
             
             toggleVisibility('aspectRatioCol', conf.showRatio);
+            toggleVisibility('ideogramQualityCol', conf.showQuality);
             toggleVisibility('videoResCol', conf.showVidRes);
             toggleVisibility('videoDurationCol', conf.showDuration);
             toggleVisibility('seedCol', conf.showSeed);
@@ -508,7 +526,7 @@
                 if (vp) payload.input.video_prompt = vp;
             }
 
-            // 2. Video Data (Per Animate/Replace)
+            // 2. Video Data
             if (conf.reqVideo) {
                 const vidUrl = document.getElementById('videoUrl').value.trim();
                 if (!vidUrl) {
@@ -541,6 +559,7 @@
 
             // 5. Settings
             if (conf.showRatio) payload.input.aspect_ratio = document.getElementById('aspectRatio').value;
+            if (conf.showQuality) payload.input.quality = document.getElementById('ideogramQuality').value;
             if (conf.showVidRes) payload.input.resolution = document.getElementById('videoResolution').value;
             if (conf.showDuration) payload.input.duration = parseInt(document.getElementById('videoDuration').value, 10);
             
