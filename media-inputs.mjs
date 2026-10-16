@@ -295,7 +295,8 @@ export class MediaInputs {
         }
         try {
           const url = new URL(data?.urls?.get);
-          if (url.origin !== 'https://api.pruna.ai' || url.username || url.password || url.search || url.hash || !/^\/v1\/files\/[A-Za-z0-9_-]+$/.test(url.pathname)) throw Error();
+          // This reference is sent only as input to Pruna; the API key stays in headers of our own endpoints.
+          if (url.protocol !== 'https:' || url.username || url.password || url.hash || url.href.length > 8192) throw Error();
           resolve(url.href);
         } catch { reject(new Error('Pruna non ha restituito un riferimento valido per il file.')); }
       });
