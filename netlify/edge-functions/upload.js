@@ -2,19 +2,68 @@ import { MAX_FILE_BYTES, mediaType } from '../../media-config.mjs';
 
 const json = (status, data) => Response.json(data, {
   status,
-  headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'X-Pruna-Upload-Version': '2' }
+  headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'X-Pruna-Upload-Version': '3' }
 });
 
 function uploadedUrl(data) {
-  // A file id identifies the authenticated endpoint documented by Pruna.
-  // Delivery URLs may contain a filename, a query string, or another host.
-  // Keep the frontend reference canonical without discarding a successful upload.
-  const id = typeof data?.id === 'string' ? data.id : '';
-  if (/^[A-Za-z0-9_-]{1,256}$/.test(id)) return 'https://api.pruna.ai/v1/files/' + id;
-  const url = new URL(data?.urls?.get, 'https://api.pruna.ai');
-  const match = /^\/v1\/files\/([A-Za-z0-9_-]+)\/?$/.exec(url.pathname);
-  if (url.origin !== 'https://api.pruna.ai' || url.username || url.password || !match) throw new Error('missing file reference');
-  return 'https://api.pruna.ai/v1/files/' + match[1];
+  // References go back to Pruna in prediction inputs. No request or API key is
+  // ever sent to this URL by the upload endpoint. Preserve signed delivery URLs.
+  function reference(value) {
+    if (typeof value !== 'string' || !value.trim() || value.length > 8192) return null;
+    const text = value.trim();
+    if (!text.startsWith('https://') && !(text.startsWith('/') && !text.startsWith('//'))) return null;
+    try {
+      const url = new URL(text, 'https://api.pruna.ai');
+      if (url.protocol !== 'https:' || url.username || url.password || url.hash) return null;
+      return url.href;
+    } catch { return null; }
+  }
+  const pending = [{ value: data, depth: 0 }];
+  const records = [];
+  while (pending.length && records.length < 32) {
+    const { value, depth } = pending.shift();
+    if (depth > 4 || value === null || value === undefined) continue;
+    if (typeof value === 'string') {
+      const url = reference(value);
+      if (url) return url;
+      continue;
+    }
+    if (Array.isArray(value)) {
+      // One file is uploaded per request; do not guess among several results.
+      if (value.length === 1) pending.push({ value: value[0], depth: depth + 1 });
+      continue;
+    }
+    if (typeof value !== 'object' || value.error || value.success === false || ['failed','error'].includes(value.status)) continue;
+    records.push(value);
+    for (const candidate of [value.urls?.get, value.urls?.download, value.url, value.file_url,
+      value.fileUrl, value.download_url, value.downloadUrl, value.public_url, value.get_url,
+      value.links?.get, value.links?.download]) {
+      const url = reference(candidate);
+      if (url) return url;
+    }
+    for (const key of ['data','file','result','response','output','files','uploaded_file','upload']) {
+      if (value[key] !== undefined) pending.push({ value: value[key], depth: depth + 1 });
+    }
+  }
+  // The API also documents an id-only reference. Use it only when no URL exists.
+  for (const value of records) {
+    for (const id of [value.id, value.file_id, value.fileId]) {
+      if (typeof id === 'string' && /^[A-Za-z0-9_-]{1,256}$/.test(id)) return 'https://api.pruna.ai/v1/files/' + id;
+    }
+  }
+  throw new Error('missing file reference');
+}
+
+function responseShape(value, depth = 0) {
+  // Types and structural field names only; never include string/number values.
+  if (value === null) return 'null';
+  if (typeof value !== 'object') return typeof value;
+  if (depth >= 3) return Array.isArray(value) ? 'array' : 'object';
+  if (Array.isArray(value)) return value.length ? [responseShape(value[0], depth + 1)] : [];
+  return Object.fromEntries(Object.entries(value).slice(0, 12).map(([key, child], index) => [
+    /^[A-Za-z_][A-Za-z0-9_]{0,31}$/.test(key) ? key : 'field_' + index,
+    responseShape(child, depth + 1)
+  ]));
 }
 
 function matchesFormat(bytes, type) {
@@ -51,7 +100,7 @@ export default async function upload(request) {
 
   const reader = request.body.getReader();
   const controller = new AbortController();
-  let tooLarge = false, incomplete = false, timedOut = false, total = 0, stage = 'read';
+  let tooLarge = false, incomplete = false, timedOut = false, total = 0, stage = 'read', responseData;
   const cancel = () => { controller.abort(); reader.cancel().catch(() => {}); };
   const timer = setTimeout(() => { timedOut = true; cancel(); }, 35000);
   request.signal.addEventListener('abort', cancel, { once: true });
@@ -125,9 +174,9 @@ export default async function upload(request) {
       return json(upstream.status, { error: messages[upstream.status] || 'Pruna non ha accettato il file. Verifica il formato e riprova.' });
     }
     stage = 'response';
-    const data = await upstream.json();
+    responseData = await upstream.json();
     stage = 'reference';
-    return json(201, { urls: { get: uploadedUrl(data) } });
+    return json(201, { urls: { get: uploadedUrl(responseData) } });
   } catch (error) {
     if (tooLarge) return json(413, { error: 'Il file supera la dimensione consentita.' });
     if (incomplete) return json(400, { error: 'Il caricamento del file è incompleto. Riprova.' });
@@ -137,12 +186,14 @@ export default async function upload(request) {
       read: ['UP_READ', 'Il trasferimento del file dal browser non è stato completato. Riprova.'],
       send: ['UP_CONNECTION', 'La connessione tra Netlify e Pruna si è interrotta durante il caricamento.'],
       response: ['UP_RESPONSE', 'Pruna ha risposto al caricamento, ma la risposta non è leggibile.'],
-      reference: ['UP_REFERENCE', 'Pruna ha ricevuto il file, ma non ha restituito un riferimento utilizzabile.']
+      reference: ['UP_REFERENCE', 'La struttura della risposta di upload di Pruna non è riconosciuta.']
     };
     const [code, message] = failures[stage];
     // Do not log API keys, file contents, filenames, or temporary delivery URLs.
     console.warn('Pruna upload failed', { code, stage, errorType: error?.name || 'Error' });
-    return json(stage === 'read' ? 400 : 502, { code, error: message + ' [' + code + ']' });
+    const shape = stage === 'reference' ? responseShape(responseData) : undefined;
+    const details = shape === undefined ? '' : ' Struttura: ' + JSON.stringify(shape).slice(0, 1400);
+    return json(stage === 'read' ? 400 : 502, { code, error: message + details + ' [' + code + ']', ...(shape === undefined ? {} : { response_shape: shape }) });
   } finally {
     clearTimeout(timer);
     request.signal.removeEventListener('abort', cancel);
