@@ -2,8 +2,20 @@ import { MAX_FILE_BYTES, mediaType } from '../../media-config.mjs';
 
 const json = (status, data) => Response.json(data, {
   status,
-  headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' }
+  headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'X-Pruna-Upload-Version': '2' }
 });
+
+function uploadedUrl(data) {
+  // A file id identifies the authenticated endpoint documented by Pruna.
+  // Delivery URLs may contain a filename, a query string, or another host.
+  // Keep the frontend reference canonical without discarding a successful upload.
+  const id = typeof data?.id === 'string' ? data.id : '';
+  if (/^[A-Za-z0-9_-]{1,256}$/.test(id)) return 'https://api.pruna.ai/v1/files/' + id;
+  const url = new URL(data?.urls?.get, 'https://api.pruna.ai');
+  const match = /^\/v1\/files\/([A-Za-z0-9_-]+)\/?$/.exec(url.pathname);
+  if (url.origin !== 'https://api.pruna.ai' || url.username || url.password || !match) throw new Error('missing file reference');
+  return 'https://api.pruna.ai/v1/files/' + match[1];
+}
 
 function matchesFormat(bytes, type) {
   const text = (start, end) => String.fromCharCode(...bytes.slice(start, end));
@@ -39,9 +51,9 @@ export default async function upload(request) {
 
   const reader = request.body.getReader();
   const controller = new AbortController();
-  let tooLarge = false, incomplete = false, total = 0;
+  let tooLarge = false, incomplete = false, timedOut = false, total = 0, stage = 'read';
   const cancel = () => { controller.abort(); reader.cancel().catch(() => {}); };
-  const timer = setTimeout(cancel, 35000);
+  const timer = setTimeout(() => { timedOut = true; cancel(); }, 35000);
   request.signal.addEventListener('abort', cancel, { once: true });
   if (request.signal.aborted) cancel();
   try {
@@ -90,9 +102,14 @@ export default async function upload(request) {
       },
       cancel() { return reader.cancel(); }
     });
+    stage = 'send';
     const upstream = await fetch('https://api.pruna.ai/v1/files', {
       method: 'POST',
-      headers: { apikey: key, 'Content-Type': 'multipart/form-data; boundary=' + boundary },
+      headers: {
+        apikey: key,
+        'Content-Type': 'multipart/form-data; boundary=' + boundary,
+        'Content-Length': String(prefix.byteLength + size + suffix.byteLength)
+      },
       body,
       duplex: 'half',
       redirect: 'error',
@@ -107,14 +124,25 @@ export default async function upload(request) {
       };
       return json(upstream.status, { error: messages[upstream.status] || 'Pruna non ha accettato il file. Verifica il formato e riprova.' });
     }
+    stage = 'response';
     const data = await upstream.json();
-    const url = new URL(data?.urls?.get);
-    if (url.origin !== 'https://api.pruna.ai' || url.username || url.password || url.search || url.hash || !/^\/v1\/files\/[A-Za-z0-9_-]+$/.test(url.pathname)) throw new Error('invalid response');
-    return json(201, { urls: { get: url.href } });
-  } catch {
+    stage = 'reference';
+    return json(201, { urls: { get: uploadedUrl(data) } });
+  } catch (error) {
     if (tooLarge) return json(413, { error: 'Il file supera la dimensione consentita.' });
     if (incomplete) return json(400, { error: 'Il caricamento del file è incompleto. Riprova.' });
-    return json(controller.signal.aborted ? 504 : 502, { error: 'Caricamento non completato. Riprova con un file più piccolo oppure usa un link.' });
+    if (timedOut) return json(504, { code: 'UP_TIMEOUT', error: 'Pruna non ha completato il caricamento entro 35 secondi. Riprova tra poco. [UP_TIMEOUT]' });
+    if (controller.signal.aborted) return json(499, { code: 'UP_ABORTED', error: 'Caricamento interrotto. [UP_ABORTED]' });
+    const failures = {
+      read: ['UP_READ', 'Il trasferimento del file dal browser non è stato completato. Riprova.'],
+      send: ['UP_CONNECTION', 'La connessione tra Netlify e Pruna si è interrotta durante il caricamento.'],
+      response: ['UP_RESPONSE', 'Pruna ha risposto al caricamento, ma la risposta non è leggibile.'],
+      reference: ['UP_REFERENCE', 'Pruna ha ricevuto il file, ma non ha restituito un riferimento utilizzabile.']
+    };
+    const [code, message] = failures[stage];
+    // Do not log API keys, file contents, filenames, or temporary delivery URLs.
+    console.warn('Pruna upload failed', { code, stage, errorType: error?.name || 'Error' });
+    return json(stage === 'read' ? 400 : 502, { code, error: message + ' [' + code + ']' });
   } finally {
     clearTimeout(timer);
     request.signal.removeEventListener('abort', cancel);
