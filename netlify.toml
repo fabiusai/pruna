@@ -3,6 +3,9 @@
   functions = "netlify/functions"
 [functions]
   node_bundler = "esbuild"
+[[edge_functions]]
+  function = "upload"
+  path = "/api/upload"
 [[headers]]
   for = "/*"
   [headers.values]
