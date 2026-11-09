@@ -29,6 +29,15 @@ export class MediaInputs {
     state.urls = url;
   }
 
+  useVideoFile(id, file) {
+    if (file.size > MAX_FILE_BYTES) throw new Error('La clip supera il limite di caricamento di 50 MB. Usa un link pubblico nella funzione Migliora video.');
+    const state = this.state(id);
+    const preview = URL.createObjectURL(file);
+    for (const entry of state.files) URL.revokeObjectURL(entry.preview);
+    state.files = [{ file, type: file.type, preview }];
+    state.source = 'files';
+  }
+
   has(id) {
     if (!this.active.has(id)) return false;
     const state = this.state(id);
@@ -105,7 +114,7 @@ export class MediaInputs {
           preview.preload = 'metadata';
           preview.setAttribute('aria-label', 'Anteprima di ' + entry.file.name);
           if (kind === 'video') preview.playsInline = true;
-          preview.addEventListener('loadedmetadata', () => { entry.duration = preview.duration; });
+          preview.addEventListener('loadedmetadata', () => { entry.duration = preview.duration; this.onChange(); });
         }
         const info = element('div', 'media-info');
         info.append(element('strong', 'media-name', entry.file.name), element('span', '', formatBytes(entry.file.size)));
