@@ -1,4 +1,4 @@
-const MODELS = new Set(['p-image','p-image-ideogram','p-image-edit','p-image-upscale','p-image-try-on','p-video','p-video-2','p-video-2-pro','p-video-edit','p-video-animate','p-video-replace','p-video-avatar']);
+const MODELS = new Set(['p-image','p-image-ideogram','p-image-edit','p-image-upscale','p-image-try-on','p-video','p-video-2','p-video-2-pro','p-video-edit','p-video-animate','p-video-replace','p-video-avatar','p-video-upscale']);
 const json = (statusCode,data) => ({statusCode,headers:{'Content-Type':'application/json','Cache-Control':'no-store'},body:JSON.stringify(data)});
 exports.handler = async function(event) {
  if(event.httpMethod!=='POST')return json(405,{error:'Metodo non consentito'});
